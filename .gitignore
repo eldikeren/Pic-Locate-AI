@@ -94,3 +94,8 @@ test_*.py
 
 # Allow pyrightconfig.json
 !pyrightconfig.json
+
+# Allow deployment files
+!vercel.json
+!package.json
+!README.md

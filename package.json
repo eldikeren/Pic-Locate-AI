@@ -1,0 +1,26 @@
+{
+  "name": "pic-locate-ai",
+  "version": "1.0.0",
+  "description": "AI-powered Google Drive image search with CLIP, YOLO, and color analysis",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step required for static HTML'",
+    "start": "python -m http.server 4000",
+    "dev": "python -m http.server 4000"
+  },
+  "keywords": [
+    "ai",
+    "image-search",
+    "google-drive",
+    "clip",
+    "yolo",
+    "computer-vision"
+  ],
+  "author": "Eldikeren",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eldikeren/Pic-Locate-AI.git"
+  },
+  "homepage": "https://pic-locate-ai.vercel.app"
+}
