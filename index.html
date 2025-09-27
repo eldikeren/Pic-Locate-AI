@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive AI Visual Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255, 165, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid rgba(255, 165, 0, 0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #20b2aa 0%, #008b8b 50%, #006666 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 165, 0, 0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 20px rgba(255, 165, 0, 0.3);
+        }
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo-img {
+            max-width: 300px;
+            height: auto;
+            filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.3));
+            animation: logoGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes logoGlow {
+            0% {
+                filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.3));
+            }
+            100% {
+                filter: drop-shadow(0 0 30px rgba(255, 165, 0, 0.6));
+            }
+        }
+        
+        .header .logo-text {
+            background: linear-gradient(45deg, #20b2aa, #00ced1, #20b2aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(255, 165, 0, 0.5);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px;
+            background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            border: 2px solid rgba(255, 165, 0, 0.3);
+            border-radius: 15px;
+            background: linear-gradient(145deg, #3a3a3a 0%, #2a2a2a 100%);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        
+        .section h2 {
+            color: #20b2aa;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-shadow: 0 0 10px rgba(32, 178, 170, 0.3);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 10px 10px 0;
+            box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.4);
+            background: linear-gradient(135deg, #ff7a45 0%, #ffa500 100%);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .result-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .result-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .result-card.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .result-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .result-image:hover {
+            transform: scale(1.05);
+        }
+        
+        .result-image.loading {
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+        
+        .result-image.error {
+            background: #ffe6e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d32f2f;
+        }
+        
+        .folder-info {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .checkbox {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .export-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(145deg, #3a3a3a 0%, #2a2a2a 100%);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 165, 0, 0.3);
+        }
+        
+        .export-options {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .export-options label {
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .export-options input[type="checkbox"] {
+            accent-color: #ff6b35;
+        }
+        
+        .selected-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        
+        .modal-content {
+            position: relative;
+            margin: 5% auto;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        
+        .modal-image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #ccc;
+        }
+        
+        .uploaded-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .uploaded-image-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            min-width: 200px;
+        }
+        
+        .uploaded-image-item img {
+            flex-shrink: 0;
+        }
+        
+        .uploaded-image-item div {
+            flex: 1;
+        }
+        
+        .uploaded-image-item small {
+            color: #666;
+            font-size: 0.8rem;
+        }
+        
+        .storyboard-analysis {
+            background: #f8f9ff;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .analysis-details {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .analysis-details p {
+            margin: 8px 0;
+            color: #333;
+        }
+        
+        .similar-images-section {
+            margin-top: 20px;
+        }
+        
+        .similar-images-section h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .result-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .result-card .score {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .result-card .details {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 2px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="frontend/media/Gemini_Generated_Image_3q0jf63q0jf63q0j.png" alt="Idan Locations Logo" class="logo-img">
+            </div>
+            <p>AI-Powered Visual Search & Design Proposal Platform</p>
+        </div>
+        
+        <div class="content">
+            <!-- Authentication Section -->
+            <div class="section">
+                <h2>🔐 Setup</h2>
+                <div id="auth-status" class="status info">
+                    Ready to connect to Google Drive
+                </div>
+                <button id="auth-btn" class="btn" onclick="authenticate()">
+                    Connect Google Drive
+                </button>
+                <button id="index-btn" class="btn" onclick="indexDrive()" disabled>
+                    Index Drive Images
+                </button>
+                <div id="index-status"></div>
+            </div>
+            
+            <!-- Search Section -->
+            <div class="section">
+                <h2>🔍 Search Images</h2>
+                <div class="input-group">
+                    <label for="search-query">Search Query</label>
+                    <input type="text" id="search-query" placeholder="e.g., modern kitchen with purple island" />
+                </div>
+                
+                <div class="input-group">
+                    <label for="required-objects">Required Objects (comma-separated)</label>
+                    <input type="text" id="required-objects" placeholder="e.g., island, stove, sink" />
+                </div>
+                
+                <div class="input-group">
+                    <label for="required-colors">Required Colors (comma-separated)</label>
+                    <input type="text" id="required-colors" placeholder="e.g., purple, blue, white" />
+                </div>
+                
+                <button id="search-btn" class="btn" onclick="searchImages()" disabled>
+                    Search Images
+                </button>
+                
+                <div id="search-results"></div>
+                
+                <!-- Export Section -->
+                <div id="export-section" class="export-section" style="display: none;">
+                    <h3>📄 Export Selected Images</h3>
+                    <div id="selected-count" class="selected-count">0 images selected</div>
+                    <div class="export-options">
+                        <button id="export-pdf-btn" class="btn" onclick="exportToPDF()" disabled>
+                            📄 Export as PDF
+                        </button>
+                        <button id="export-word-btn" class="btn" onclick="exportToWord()" disabled>
+                            📝 Export as Word
+                        </button>
+                        <button id="export-ppt-btn" class="btn" onclick="exportToPPT()" disabled>
+                            📊 Export as PowerPoint
+                        </button>
+                    </div>
+                    <div class="export-options">
+                        <label>
+                            <input type="checkbox" id="include-proposal" checked> Include AI-Generated Proposal
+                        </label>
+                    </div>
+                    <button id="clear-selection-btn" class="btn" onclick="clearSelection()" style="background: #6c757d;">
+                        Clear Selection
+                    </button>
+                </div>
+            </div>
+            
+            <!-- File Upload Section -->
+            <div class="section">
+                <h2>📄 Upload Requirements</h2>
+                <div class="input-group">
+                    <label for="file-upload">Upload Storyboard or PDF</label>
+                    <input type="file" id="file-upload" accept=".pdf,.txt,.doc,.docx" />
+                </div>
+                <button id="parse-btn" class="btn" onclick="parseRequirements()">
+                    Parse Requirements
+                </button>
+                <div id="parse-results"></div>
+            </div>
+            
+            <!-- Image Upload Section -->
+            <div class="section">
+                <h2>🖼️ Upload Images</h2>
+                <div class="input-group">
+                    <label for="image-upload">Upload Images to Search</label>
+                    <input type="file" id="image-upload" accept="image/*" multiple />
+                    <small>Select multiple images to add them to your searchable collection</small>
+                </div>
+                <button id="upload-images-btn" class="btn" onclick="uploadImages()" disabled>
+                    Upload & Index Images
+                </button>
+                <div id="upload-results"></div>
+            </div>
+            
+            <!-- Storyboard Analysis Section -->
+            <div class="section">
+                <h2>🎨 Storyboard Analysis</h2>
+                <div class="input-group">
+                    <label for="storyboard-upload">Upload Storyboard Image</label>
+                    <input type="file" id="storyboard-upload" accept="image/*" />
+                    <small>Upload a storyboard or reference image to find similar images in your collection</small>
+                </div>
+                <button id="analyze-storyboard-btn" class="btn" onclick="analyzeStoryboard()" disabled>
+                    Analyze Storyboard & Find Similar Images
+                </button>
+                <div id="storyboard-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div class="modal-content">
+            <img id="modalImage" class="modal-image" src="" alt="">
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let isAuthenticated = false;
+        let isIndexed = false;
+        let selectedImages = new Set();
+        let currentResults = [];
+        let uploadedImages = [];
+        let sessionId = null;
+        
+        // Initialize file input handlers and check authentication
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageUpload = document.getElementById('image-upload');
+            const uploadBtn = document.getElementById('upload-images-btn');
+            const storyboardUpload = document.getElementById('storyboard-upload');
+            const analyzeBtn = document.getElementById('analyze-storyboard-btn');
+            
+            imageUpload.addEventListener('change', function() {
+                uploadBtn.disabled = this.files.length === 0;
+                if (this.files.length > 0) {
+                    uploadBtn.textContent = `Upload & Index ${this.files.length} Image${this.files.length !== 1 ? 's' : ''}`;
+                } else {
+                    uploadBtn.textContent = 'Upload & Index Images';
+                }
+            });
+            
+            storyboardUpload.addEventListener('change', function() {
+                analyzeBtn.disabled = this.files.length === 0;
+                if (this.files.length > 0) {
+                    analyzeBtn.textContent = `Analyze "${this.files[0].name}" & Find Similar Images`;
+                } else {
+                    analyzeBtn.textContent = 'Analyze Storyboard & Find Similar Images';
+                }
+            });
+            
+            // Check authentication status on page load
+            checkAuthStatus();
+        });
+        
+        // Check authentication status
+        async function checkAuthStatus() {
+            try {
+                // First check if we have a stored session ID
+                const storedSessionId = localStorage.getItem('google_drive_session_id');
+                
+                if (storedSessionId) {
+                    // Check if session is still valid
+                    const response = await fetch(`${API_BASE}/auth/status?session_id=${storedSessionId}`);
+                    const data = await response.json();
+                    
+                    if (data.authenticated) {
+                        isAuthenticated = true;
+                        sessionId = storedSessionId;
+                        document.getElementById('auth-status').innerHTML = 
+                            `<div class="status success">✅ Connected to Google Drive (Session Active)</div>`;
+                        document.getElementById('auth-btn').textContent = 'Disconnect from Google Drive';
+                        document.getElementById('auth-btn').onclick = disconnectFromDrive;
+                        return;
+                    } else {
+                        // Session expired, clear it
+                        localStorage.removeItem('google_drive_session_id');
+                    }
+                }
+                
+                // No valid session, check global auth status
+                const response = await fetch(`${API_BASE}/auth/status`);
+                const data = await response.json();
+                
+                if (data.authenticated) {
+                    isAuthenticated = true;
+                    document.getElementById('auth-status').innerHTML = 
+                        `<div class="status success">✅ Connected to Google Drive</div>`;
+                    document.getElementById('auth-btn').textContent = 'Disconnect from Google Drive';
+                    document.getElementById('auth-btn').onclick = disconnectFromDrive;
+                } else {
+                    isAuthenticated = false;
+                    document.getElementById('auth-status').innerHTML = 
+                        `<div class="status error">❌ Not connected to Google Drive</div>`;
+                    document.getElementById('auth-btn').textContent = 'Connect to Google Drive';
+                    document.getElementById('auth-btn').onclick = authenticate;
+                }
+            } catch (error) {
+                console.error('Auth status check failed:', error);
+                isAuthenticated = false;
+                document.getElementById('auth-status').innerHTML = 
+                    `<div class="status error">❌ Failed to check authentication status</div>`;
+            }
+        }
+        
+        // Check initial status
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (data.authenticated) {
+                    isAuthenticated = true;
+                    document.getElementById('auth-status').innerHTML = '✅ Connected to Google Drive';
+                    document.getElementById('auth-status').className = 'status success';
+                    document.getElementById('auth-btn').disabled = true;
+                    document.getElementById('index-btn').disabled = false;
+                    document.getElementById('search-btn').disabled = false;
+                }
+                
+                if (data.images_indexed > 0) {
+                    isIndexed = true;
+                    document.getElementById('index-status').innerHTML = `✅ ${data.images_indexed} images indexed`;
+                    document.getElementById('index-status').className = 'status success';
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+        
+        // Authenticate with Google Drive
+        async function authenticate() {
+            try {
+                console.log('🔐 Starting OAuth authentication...');
+                document.getElementById('auth-status').innerHTML = '🔄 Opening authentication...';
+                document.getElementById('auth-status').className = 'status info';
+                
+                console.log('📡 Making request to:', `${API_BASE}/auth`);
+                const response = await fetch(`${API_BASE}/auth`);
+                
+                console.log('📡 Auth response status:', response.status);
+                console.log('📡 Auth response headers:', response.headers);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ HTTP error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📋 Auth response data:', data);
+                
+                if (data.status === 'authenticated') {
+                    console.log('✅ Authentication successful!');
+                    isAuthenticated = true;
+                    
+                    // Store session ID if provided
+                    if (data.session_id) {
+                        sessionId = data.session_id;
+                        localStorage.setItem('google_drive_session_id', sessionId);
+                        console.log('💾 Session ID saved:', sessionId);
+                    }
+                    
+                    // Log debug info if available
+                    if (data.debug) {
+                        console.log('🔍 Debug info:', data.debug);
+                    }
+                    
+                    document.getElementById('auth-status').innerHTML = '✅ ' + data.message;
+                    document.getElementById('auth-status').className = 'status success';
+                    document.getElementById('auth-btn').textContent = 'Disconnect from Google Drive';
+                    document.getElementById('auth-btn').onclick = disconnectFromDrive;
+                    document.getElementById('index-btn').disabled = false;
+                    document.getElementById('search-btn').disabled = false;
+                } else {
+                    console.error('❌ Authentication failed:', data.error);
+                    document.getElementById('auth-status').innerHTML = '❌ ' + data.error;
+                    document.getElementById('auth-status').className = 'status error';
+                    
+                    // Log debug info if available
+                    if (data.debug) {
+                        console.log('🔍 Debug info:', data.debug);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Authentication error:', error);
+                document.getElementById('auth-status').innerHTML = '❌ Authentication failed: ' + error.message;
+                document.getElementById('auth-status').className = 'status error';
+            }
+        }
+
+        // Disconnect from Google Drive
+        async function disconnectFromDrive() {
+            try {
+                document.getElementById('auth-status').innerHTML = '🔄 Disconnecting...';
+                document.getElementById('auth-status').className = 'status info';
+                
+                const response = await fetch(`${API_BASE}/auth/disconnect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'disconnected') {
+                    isAuthenticated = false;
+                    sessionId = null;
+                    localStorage.removeItem('google_drive_session_id');
+                    
+                    document.getElementById('auth-status').innerHTML = '❌ Disconnected from Google Drive';
+                    document.getElementById('auth-status').className = 'status error';
+                    document.getElementById('auth-btn').textContent = 'Connect to Google Drive';
+                    document.getElementById('auth-btn').onclick = authenticate;
+                    document.getElementById('index-btn').disabled = true;
+                    document.getElementById('search-btn').disabled = true;
+                } else {
+                    document.getElementById('auth-status').innerHTML = '❌ Failed to disconnect: ' + data.error;
+                    document.getElementById('auth-status').className = 'status error';
+                }
+            } catch (error) {
+                document.getElementById('auth-status').innerHTML = '❌ Disconnect failed: ' + error.message;
+                document.getElementById('auth-status').className = 'status error';
+            }
+        }
+        
+        // Index Drive images
+        async function indexDrive() {
+            try {
+                document.getElementById('index-status').innerHTML = '🔄 Indexing images...';
+                document.getElementById('index-status').className = 'status info';
+                
+                const response = await fetch(`${API_BASE}/index`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status && data.status.includes('indexed')) {
+                    isIndexed = true;
+                    document.getElementById('index-status').innerHTML = `✅ ${data.message}`;
+                    document.getElementById('index-status').className = 'status success';
+                } else {
+                    document.getElementById('index-status').innerHTML = '❌ ' + (data.error || 'Indexing failed');
+                    document.getElementById('index-status').className = 'status error';
+                }
+            } catch (error) {
+                document.getElementById('index-status').innerHTML = '❌ Indexing failed: ' + error.message;
+                document.getElementById('index-status').className = 'status error';
+            }
+        }
+        
+        // Search images
+        async function searchImages() {
+            const query = document.getElementById('search-query').value;
+            const objects = document.getElementById('required-objects').value.split(',').map(s => s.trim()).filter(s => s);
+            const colors = document.getElementById('required-colors').value.split(',').map(s => s.trim()).filter(s => s);
+            
+            if (!query.trim()) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            try {
+                document.getElementById('search-results').innerHTML = '<div class="loading"><div class="spinner"></div>Searching images...</div>';
+                
+                const searchData = {
+                    query: query,
+                    required_objects: objects,
+                    required_colors: colors.map(color => getColorRGB(color)).filter(c => c),
+                    top_k: 10
+                };
+                
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(searchData)
+                });
+                
+                const results = await response.json();
+                
+                if (results.error) {
+                    document.getElementById('search-results').innerHTML = `<div class="status error">❌ ${results.error}</div>`;
+                    return;
+                }
+                
+                currentResults = results;
+                displaySearchResults(results);
+            } catch (error) {
+                document.getElementById('search-results').innerHTML = `<div class="status error">❌ Search failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Display search results
+        function displaySearchResults(results) {
+            console.log('📊 Displaying search results:', results.length, 'results');
+            console.log('🔍 Stack trace for displaySearchResults call:');
+            console.trace();
+            
+            if (results.length === 0) {
+                document.getElementById('search-results').innerHTML = '<div class="status info">No results found</div>';
+                document.getElementById('export-section').style.display = 'none';
+                return;
+            }
+            
+            // Show export section
+            document.getElementById('export-section').style.display = 'block';
+            
+            const resultsHTML = `
+                <div class="status success">✅ Found ${results.length} results</div>
+                <div class="results">
+                    ${results.map((result, index) => `
+                        <div class="result-card" id="result-${index}">
+                            <input type="checkbox" class="checkbox" onchange="toggleSelection(${index})">
+                            <div class="folder-info">📁 ${result.folder || 'Root'}</div>
+                            <img class="result-image loading" 
+                                 data-file-id="${result.file_id}" 
+                                 data-index="${index}"
+                                 onclick="openImageModal('${result.file_id}', '${result.name}')"
+                                 alt="Loading...">
+                            <h3>${result.name}</h3>
+                            <div class="score">Score: ${result.score.toFixed(3)}</div>
+                            <div class="details">
+                                <p><strong>Semantic:</strong> ${result.semantic_score.toFixed(3)}</p>
+                                <p><strong>Objects:</strong> ${result.object_score.toFixed(3)}</p>
+                                <p><strong>Colors:</strong> ${result.color_score.toFixed(3)}</p>
+                                ${result.objects && result.objects.length > 0 ? `<p><strong>Detected Objects:</strong><br>${result.objects.map(obj => `<span class="tag">${obj}</span>`).join('')}</p>` : ''}
+                                ${result.colors && result.colors.length > 0 ? `<p><strong>Colors:</strong><br>${result.colors.map(color => `<span class="color-preview" style="background-color: rgb(${color.join(',')})" title="RGB(${color.join(',')})"></span>`).join('')}</p>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            console.log('📝 Setting search results HTML...');
+            document.getElementById('search-results').innerHTML = resultsHTML;
+            
+            console.log('🔍 Checking rendered elements...');
+            const renderedElements = document.querySelectorAll('.result-image');
+            console.log('📊 Found', renderedElements.length, 'result-image elements');
+            
+            // Load images asynchronously
+            console.log('🖼️ Starting to load', results.length, 'images...');
+            results.forEach((result, index) => {
+                loadImage(result.file_id, `result-${index}`);
+            });
+        }
+        
+        // Load image from Google Drive or uploaded images
+        async function loadImage(fileId, index) {
+            try {
+                console.log(`🖼️ Loading image: ${fileId} for index: ${index}`);
+                
+                // Determine if it's an uploaded image or Google Drive image
+                const endpoint = fileId.startsWith('uploaded_') ? 
+                    `${API_BASE}/uploaded_image/${fileId}` : 
+                    `${API_BASE}/image/${fileId}`;
+                
+                console.log(`📡 Fetching from: ${endpoint}`);
+                const response = await fetch(endpoint);
+                console.log(`📡 Response status: ${response.status}`);
+                
+                const img = document.querySelector(`#${index} .result-image`);
+                console.log(`🔍 Looking for image element: #${index} .result-image`);
+                console.log(`🔍 Found element:`, img);
+                
+                if (!img) {
+                    console.warn(`❌ Image element not found for index: ${index}`);
+                    console.log(`🔍 Available elements with class 'result-image':`, document.querySelectorAll('.result-image'));
+                    return;
+                }
+                
+                if (response.ok) {
+                    console.log(`✅ Image response OK, creating blob...`);
+                    const blob = await response.blob();
+                    console.log(`✅ Blob created, size: ${blob.size} bytes, type: ${blob.type}`);
+                    const imageUrl = URL.createObjectURL(blob);
+                    img.src = imageUrl;
+                    img.className = 'result-image';
+                    console.log(`✅ Image loaded successfully: ${fileId}`);
+                } else {
+                    console.error(`❌ Image response failed: ${response.status} ${response.statusText}`);
+                    img.className = 'result-image error';
+                    img.alt = 'Failed to load image';
+                }
+            } catch (error) {
+                console.error(`❌ Failed to load image ${fileId}:`, error);
+                const img = document.querySelector(`#${index} .result-image`);
+                console.log(`🔍 Error handler looking for: #${index} .result-image`);
+                console.log(`🔍 Error handler found element:`, img);
+                if (img) {
+                    img.className = 'result-image error';
+                    img.alt = 'Failed to load image';
+                }
+            }
+        }
+        
+        // Toggle image selection
+        function toggleSelection(index) {
+            const checkbox = document.querySelector(`#result-${index} .checkbox`);
+            const card = document.getElementById(`result-${index}`);
+            
+            if (checkbox.checked) {
+                selectedImages.add(index);
+                card.classList.add('selected');
+            } else {
+                selectedImages.delete(index);
+                card.classList.remove('selected');
+            }
+            
+            updateSelectionUI();
+        }
+        
+        // Update selection UI
+        function updateSelectionUI() {
+            const count = selectedImages.size;
+            document.getElementById('selected-count').textContent = `${count} image${count !== 1 ? 's' : ''} selected`;
+            
+            const exportPdfBtn = document.getElementById('export-pdf-btn');
+            const exportWordBtn = document.getElementById('export-word-btn');
+            const exportPptBtn = document.getElementById('export-ppt-btn');
+            
+            if (exportPdfBtn) {
+                exportPdfBtn.disabled = count === 0;
+                exportPdfBtn.textContent = `📄 Export as PDF (${count})`;
+            }
+            
+            if (exportWordBtn) {
+                exportWordBtn.disabled = count === 0;
+                exportWordBtn.textContent = `📝 Export as Word (${count})`;
+            }
+            
+            if (exportPptBtn) {
+                exportPptBtn.disabled = count === 0;
+                exportPptBtn.textContent = `📊 Export as PowerPoint (${count})`;
+            }
+        }
+        
+        // Clear all selections
+        function clearSelection() {
+            selectedImages.clear();
+            document.querySelectorAll('.result-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelectorAll('.checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectionUI();
+        }
+        
+        // Open image modal
+        function openImageModal(fileId, fileName) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            
+            // Find the image source
+            const img = document.querySelector(`[data-file-id="${fileId}"]`);
+            if (img && img.src) {
+                modalImg.src = img.src;
+                modalImg.alt = fileName;
+                modal.style.display = 'block';
+            } else {
+                // If image not loaded yet, load it directly
+                const endpoint = fileId.startsWith('uploaded_') ? 
+                    `${API_BASE}/uploaded_image/${fileId}` : 
+                    `${API_BASE}/image/${fileId}`;
+                
+                modalImg.src = endpoint;
+                modalImg.alt = fileName;
+                modal.style.display = 'block';
+            }
+        }
+        
+        // Close image modal
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        // Export selected images to PDF
+        async function exportToPDF() {
+            if (selectedImages.size === 0) {
+                alert('Please select at least one image to export');
+                return;
+            }
+            
+            try {
+                const selectedResults = [];
+                
+                // Handle regular search results, storyboard results, and auto-search results
+                for (const selection of selectedImages) {
+                    const selectionStr = String(selection);
+                    if (selectionStr.startsWith('storyboard-')) {
+                        // This is a storyboard result - we need to get the data from the storyboard results
+                        const storyboardIndex = parseInt(selectionStr.replace('storyboard-', ''));
+                        const storyboardResults = document.querySelectorAll('#storyboard-results .result-card');
+                        if (storyboardResults[storyboardIndex]) {
+                            const card = storyboardResults[storyboardIndex];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else if (selectionStr.startsWith('auto-')) {
+                        // This is an auto-search result
+                        const autoIndex = parseInt(selectionStr.replace('auto-', ''));
+                        const autoResults = document.querySelectorAll('#auto-result-' + autoIndex);
+                        if (autoResults.length > 0) {
+                            const card = autoResults[0];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else {
+                        // This is a regular search result
+                        const index = parseInt(selection);
+                        if (currentResults && currentResults[index]) {
+                            selectedResults.push(currentResults[index]);
+                        }
+                    }
+                }
+                
+                if (selectedResults.length === 0) {
+                    alert('No valid images selected for export');
+                    return;
+                }
+                
+                console.log('📤 Exporting PDF with:', selectedResults.length, 'images');
+                console.log('📤 File IDs:', selectedResults.map(r => r.file_id));
+                console.log('📤 File names:', selectedResults.map(r => r.name));
+                
+                const response = await fetch(`${API_BASE}/export_pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_ids: selectedResults.map(r => r.file_id),
+                        file_names: selectedResults.map(r => r.name)
+                    })
+                });
+                
+                console.log('📤 Export response status:', response.status);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `google_drive_images_${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    alert(`Successfully exported ${selectedResults.length} images to PDF!`);
+                } else {
+                    const error = await response.json();
+                    alert('Export failed: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                console.error('Error details:', error);
+                alert('Export failed: ' + (error.message || 'Connection error'));
+            }
+        }
+        
+        // Export to Word
+        async function exportToWord() {
+            if (selectedImages.size === 0) {
+                alert('Please select at least one image to export');
+                return;
+            }
+            
+            try {
+                const selectedResults = [];
+                
+                // Handle regular search results, storyboard results, and auto-search results
+                for (const selection of selectedImages) {
+                    const selectionStr = String(selection);
+                    if (selectionStr.startsWith('storyboard-')) {
+                        const storyboardIndex = parseInt(selectionStr.replace('storyboard-', ''));
+                        const storyboardResults = document.querySelectorAll('#storyboard-results .result-card');
+                        if (storyboardResults[storyboardIndex]) {
+                            const card = storyboardResults[storyboardIndex];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else if (selectionStr.startsWith('auto-')) {
+                        const autoIndex = parseInt(selectionStr.replace('auto-', ''));
+                        const autoResults = document.querySelectorAll('#auto-result-' + autoIndex);
+                        if (autoResults.length > 0) {
+                            const card = autoResults[0];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else {
+                        const index = parseInt(selection);
+                        if (currentResults && currentResults[index]) {
+                            selectedResults.push(currentResults[index]);
+                        }
+                    }
+                }
+                
+                if (selectedResults.length === 0) {
+                    alert('No valid images selected for export');
+                    return;
+                }
+                
+                const includeProposal = document.getElementById('include-proposal').checked;
+                
+                const response = await fetch(`${API_BASE}/export_word`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_ids: selectedResults.map(r => r.file_id),
+                        file_names: selectedResults.map(r => r.name),
+                        include_proposal: includeProposal
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'idan_locations_proposal.docx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    alert(`Successfully exported ${selectedResults.length} images to Word document!`);
+                } else {
+                    const error = await response.json();
+                    alert('Export failed: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                console.error('Error details:', error);
+                alert('Export failed: ' + (error.message || 'Connection error'));
+            }
+        }
+        
+        // Export to PowerPoint
+        async function exportToPPT() {
+            if (selectedImages.size === 0) {
+                alert('Please select at least one image to export');
+                return;
+            }
+            
+            try {
+                const selectedResults = [];
+                
+                // Handle regular search results, storyboard results, and auto-search results
+                for (const selection of selectedImages) {
+                    const selectionStr = String(selection);
+                    if (selectionStr.startsWith('storyboard-')) {
+                        const storyboardIndex = parseInt(selectionStr.replace('storyboard-', ''));
+                        const storyboardResults = document.querySelectorAll('#storyboard-results .result-card');
+                        if (storyboardResults[storyboardIndex]) {
+                            const card = storyboardResults[storyboardIndex];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else if (selectionStr.startsWith('auto-')) {
+                        const autoIndex = parseInt(selectionStr.replace('auto-', ''));
+                        const autoResults = document.querySelectorAll('#auto-result-' + autoIndex);
+                        if (autoResults.length > 0) {
+                            const card = autoResults[0];
+                            const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                            const name = card.querySelector('h3').textContent;
+                            selectedResults.push({ file_id: fileId, name: name });
+                        }
+                    } else {
+                        const index = parseInt(selection);
+                        if (currentResults && currentResults[index]) {
+                            selectedResults.push(currentResults[index]);
+                        }
+                    }
+                }
+                
+                if (selectedResults.length === 0) {
+                    alert('No valid images selected for export');
+                    return;
+                }
+                
+                const includeProposal = document.getElementById('include-proposal').checked;
+                
+                const response = await fetch(`${API_BASE}/export_ppt`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_ids: selectedResults.map(r => r.file_id),
+                        file_names: selectedResults.map(r => r.name),
+                        include_proposal: includeProposal
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'idan_locations_proposal.pptx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    alert(`Successfully exported ${selectedResults.length} images to PowerPoint presentation!`);
+                } else {
+                    const error = await response.json();
+                    alert('Export failed: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                console.error('Error details:', error);
+                alert('Export failed: ' + (error.message || 'Connection error'));
+            }
+        }
+        
+        // Upload and index images
+        async function uploadImages() {
+            const fileInput = document.getElementById('image-upload');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                alert('Please select at least one image to upload');
+                return;
+            }
+            
+            try {
+                document.getElementById('upload-results').innerHTML = '<div class="loading"><div class="spinner"></div>Uploading and indexing images...</div>';
+                
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('images', files[i]);
+                }
+                
+                const response = await fetch(`${API_BASE}/upload_images`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('upload-results').innerHTML = `<div class="status error">❌ ${result.error}</div>`;
+                    return;
+                }
+                
+                // Store uploaded images for display
+                uploadedImages = result.uploaded_images || [];
+                
+                const successHTML = `
+                    <div class="status success">✅ Successfully uploaded and indexed ${result.count} image${result.count !== 1 ? 's' : ''}</div>
+                    <div class="uploaded-images">
+                        ${uploadedImages.map(img => `
+                            <div class="uploaded-image-item">
+                                <img src="${img.preview_url}" alt="${img.name}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; margin: 5px;">
+                                <div>
+                                    <strong>${img.name}</strong><br>
+                                    <small>Objects: ${img.objects ? img.objects.join(', ') : 'None detected'}</small><br>
+                                    <small>Colors: ${img.colors ? img.colors.length : 0} detected</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                document.getElementById('upload-results').innerHTML = successHTML;
+                
+                // Clear the file input
+                fileInput.value = '';
+                document.getElementById('upload-images-btn').disabled = true;
+                document.getElementById('upload-images-btn').textContent = 'Upload & Index Images';
+                
+                // Update indexing status
+                isIndexed = true;
+                document.getElementById('index-status').innerHTML = '✅ Images indexed and ready for search';
+                document.getElementById('index-status').className = 'status success';
+                document.getElementById('search-btn').disabled = false;
+                
+            } catch (error) {
+                console.error('Upload failed:', error);
+                document.getElementById('upload-results').innerHTML = `<div class="status error">❌ Upload failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Analyze storyboard and find similar images
+        async function analyzeStoryboard() {
+            const fileInput = document.getElementById('storyboard-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a storyboard image to analyze');
+                return;
+            }
+            
+            try {
+                document.getElementById('storyboard-results').innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing storyboard and finding similar images...</div>';
+                
+                const formData = new FormData();
+                formData.append('storyboard', file);
+                
+                const response = await fetch(`${API_BASE}/analyze_storyboard`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('storyboard-results').innerHTML = `<div class="status error">❌ ${result.error}</div>`;
+                    return;
+                }
+                
+                // Display storyboard analysis
+                const analysisHTML = `
+                    <div class="status success">✅ Storyboard analyzed successfully!</div>
+                    <div class="storyboard-analysis">
+                        <h4>📋 Storyboard Analysis:</h4>
+                        <div class="analysis-details">
+                            <p><strong>Detected Objects:</strong> ${result.analysis && result.analysis.objects ? result.analysis.objects.join(', ') : 'None detected'}</p>
+                            <p><strong>Dominant Colors:</strong> ${result.analysis && result.analysis.colors ? result.analysis.colors.length : 0} colors detected</p>
+                            <p><strong>Suggested Room Types:</strong> ${result.analysis && result.analysis.suggested_rooms ? result.analysis.suggested_rooms.join(', ') : 'None detected'}</p>
+                        </div>
+                    </div>
+                    <div class="similar-images-section">
+                        <h4>🔍 Similar Images Found (${result.similar_images ? result.similar_images.length : 0}):</h4>
+                        <div class="export-section">
+                            <button id="export-storyboard-btn" onclick="exportStoryboardToPDF()" disabled>
+                                Export Selected Storyboard Images as PDF
+                            </button>
+                            <button onclick="clearStoryboardSelection()">Clear Selection</button>
+                            <span class="selected-count">0 selected</span>
+                        </div>
+                        <div class="results">
+                            ${result.similar_images ? result.similar_images.map((img, index) => `
+                                <div class="result-card" id="storyboard-result-${index}">
+                                    <input type="checkbox" class="checkbox" onchange="toggleStoryboardSelection(${index})">
+                                    <div class="folder-info">📁 ${img.folder || 'Root'}</div>
+                                    <img class="result-image loading" 
+                                         data-file-id="${img.file_id}" 
+                                         data-index="${index}"
+                                         onclick="openImageModal('${img.file_id}', '${img.name}')"
+                                         alt="Loading...">
+                                    <h3>${img.name}</h3>
+                                    <div class="score">Similarity: ${img.similarity_score.toFixed(3)}</div>
+                                    <div class="details">
+                                        <p><strong>Objects Match:</strong> ${img.object_match.toFixed(3)}</p>
+                                        <p><strong>Color Match:</strong> ${img.color_match.toFixed(3)}</p>
+                                        ${img.objects && img.objects.length > 0 ? `<p><strong>Detected Objects:</strong><br>${img.objects.map(obj => `<span class="tag">${obj}</span>`).join('')}</p>` : ''}
+                                        ${img.colors && img.colors.length > 0 ? `<p><strong>Colors:</strong><br>${img.colors.map(color => `<span class="color-preview" style="background-color: rgb(${color.join(',')})" title="RGB(${color.join(',')})"></span>`).join('')}</p>` : ''}
+                                    </div>
+                                </div>
+                            `).join('') : 'No similar images found'}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('storyboard-results').innerHTML = analysisHTML;
+                
+                // Load images asynchronously
+                result.similar_images.forEach((img, index) => {
+                    loadImage(img.file_id, `storyboard-result-${index}`);
+                });
+                
+                // Clear the file input
+                fileInput.value = '';
+                document.getElementById('analyze-storyboard-btn').disabled = true;
+                document.getElementById('analyze-storyboard-btn').textContent = 'Analyze Storyboard & Find Similar Images';
+                
+            } catch (error) {
+                console.error('Storyboard analysis failed:', error);
+                document.getElementById('storyboard-results').innerHTML = `<div class="status error">❌ Analysis failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Toggle selection for storyboard results
+        function toggleStoryboardSelection(index) {
+            const checkbox = document.querySelector(`#storyboard-result-${index} .checkbox`);
+            const card = document.getElementById(`storyboard-result-${index}`);
+            
+            if (checkbox.checked) {
+                selectedImages.add(`storyboard-${index}`);
+                card.classList.add('selected');
+            } else {
+                selectedImages.delete(`storyboard-${index}`);
+                card.classList.remove('selected');
+            }
+            
+            updateStoryboardSelectionUI();
+        }
+        
+        // Toggle selection for auto-search results
+        function toggleAutoSelection(index) {
+            const checkbox = document.querySelector(`#auto-result-${index} .checkbox`);
+            const card = document.getElementById(`auto-result-${index}`);
+            
+            if (checkbox.checked) {
+                selectedImages.add(`auto-${index}`);
+                card.classList.add('selected');
+            } else {
+                selectedImages.delete(`auto-${index}`);
+                card.classList.remove('selected');
+            }
+            
+            updateSelectionUI();
+        }
+
+        // Update storyboard selection UI
+        function updateStoryboardSelectionUI() {
+            const storyboardSelected = Array.from(selectedImages).filter(s => s.startsWith('storyboard-')).length;
+            const exportBtn = document.getElementById('export-storyboard-btn');
+            const countSpan = document.querySelector('.similar-images-section .selected-count');
+            
+            if (exportBtn) {
+                exportBtn.disabled = storyboardSelected === 0;
+                exportBtn.textContent = `Export Selected Storyboard Images as PDF (${storyboardSelected})`;
+            }
+            
+            if (countSpan) {
+                countSpan.textContent = `${storyboardSelected} selected`;
+            }
+        }
+
+        // Clear storyboard selection
+        function clearStoryboardSelection() {
+            const storyboardSelections = Array.from(selectedImages).filter(s => s.startsWith('storyboard-'));
+            storyboardSelections.forEach(selection => selectedImages.delete(selection));
+            
+            // Uncheck all storyboard checkboxes
+            document.querySelectorAll('#storyboard-results .checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Remove selected class from cards
+            document.querySelectorAll('#storyboard-results .result-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            updateStoryboardSelectionUI();
+        }
+
+        // Export storyboard results to PDF
+        async function exportStoryboardToPDF() {
+            const storyboardSelections = Array.from(selectedImages).filter(s => s.startsWith('storyboard-'));
+            
+            if (storyboardSelections.length === 0) {
+                alert('Please select images to export');
+                return;
+            }
+            
+            try {
+                const selectedResults = [];
+                
+                for (const selection of storyboardSelections) {
+                    const storyboardIndex = parseInt(selection.replace('storyboard-', ''));
+                    const storyboardResults = document.querySelectorAll('#storyboard-results .result-card');
+                    if (storyboardResults[storyboardIndex]) {
+                        const card = storyboardResults[storyboardIndex];
+                        const fileId = card.querySelector('.result-image').getAttribute('data-file-id');
+                        const name = card.querySelector('h3').textContent;
+                        selectedResults.push({ file_id: fileId, name: name });
+                    }
+                }
+                
+                if (selectedResults.length === 0) {
+                    alert('No valid images selected');
+                    return;
+                }
+                
+                const response = await fetch(`${API_BASE}/export_pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file_ids: selectedResults.map(r => r.file_id),
+                        file_names: selectedResults.map(r => r.name)
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'storyboard_images_export.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const error = await response.json();
+                    alert(`Export failed: ${error.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert(`Export failed: ${error.message}`);
+            }
+        }
+        
+        // Parse requirements from uploaded file
+        async function parseRequirements() {
+            const fileInput = document.getElementById('file-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file to upload');
+                return;
+            }
+            
+            try {
+                console.log('📄 Starting PDF parsing...');
+                document.getElementById('parse-results').innerHTML = '<div class="loading"><div class="spinner"></div>Parsing requirements...</div>';
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                console.log('📤 Uploading file:', file.name, 'Size:', file.size);
+                
+                console.log('📡 Making request to:', `${API_BASE}/parse_requirements`);
+                const response = await fetch(`${API_BASE}/parse_requirements`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('📡 Parse response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Parse error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📋 Parse response data:', data);
+                console.log('🔍 Auto-search results count:', data.auto_search_results ? data.auto_search_results.length : 0);
+                
+                if (data.error) {
+                    console.error('❌ Parse error:', data.error);
+                    document.getElementById('parse-results').innerHTML = `<div class="status error">❌ ${data.error}</div>`;
+                    return;
+                }
+                
+                const requirements = data.requirements;
+                let parseHTML = '<div class="status success">✅ Requirements parsed successfully</div>';
+                parseHTML += '<div class="result-card">';
+                parseHTML += '<h3>Extracted Requirements</h3>';
+                
+                if (requirements.location) {
+                    parseHTML += `<p style="color: #333;"><strong style="color: #000;">Location:</strong> <span style="color: #333;">${requirements.location}</span></p>`;
+                }
+                
+                if (requirements.style && requirements.style.length > 0) {
+                    parseHTML += `<p style="color: #333;"><strong style="color: #000;">Style:</strong> <span style="color: #333;">${requirements.style.join(', ')}</span></p>`;
+                }
+                
+                if (requirements.required_objects && requirements.required_objects.length > 0) {
+                    parseHTML += `<p style="color: #333;"><strong style="color: #000;">Objects:</strong> ${requirements.required_objects.map(obj => `<span class="tag" style="background-color: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 4px;">${obj}</span>`).join('')}</p>`;
+                }
+                
+                if (requirements.required_colors && requirements.required_colors.length > 0) {
+                    parseHTML += `<p style="color: #333;"><strong style="color: #000;">Colors:</strong> <span style="color: #333;">${requirements.required_colors.length} colors detected</span></p>`;
+                }
+                
+                // If no requirements detected, show message
+                if (requirements.message) {
+                    parseHTML += `<p><strong>Note:</strong> ${requirements.message}</p>`;
+                }
+                
+                parseHTML += '</div>';
+                
+                // Add auto-search results if available
+                console.log('🔍 Checking auto-search results:', data.auto_search_results);
+                if (data.auto_search_results && data.auto_search_results.length > 0) {
+                    console.log(`✅ Found ${data.auto_search_results.length} auto-search results`);
+                    parseHTML += '<div class="result-card">';
+                    parseHTML += '<h3>🔍 Auto-Suggested Images</h3>';
+                    parseHTML += `<p>Found ${data.auto_search_results.length} matching images based on your requirements:</p>`;
+                    parseHTML += '<div class="results">';
+                    
+                    data.auto_search_results.forEach((img, index) => {
+                        parseHTML += `
+                            <div class="result-card" id="auto-result-${index}">
+                                <input type="checkbox" class="checkbox" onchange="toggleAutoSelection(${index})">
+                                <div class="folder-info">📁 ${img.folder || 'Root'}</div>
+                                <img class="result-image loading" 
+                                     data-file-id="${img.file_id}" 
+                                     data-index="${index}"
+                                     onclick="openImageModal('${img.file_id}', '${img.name}')"
+                                     alt="Loading...">
+                                <h3>${img.name}</h3>
+                                <div class="image-info">
+                                    <p><strong>Score:</strong> ${img.score}</p>
+                                    <p><strong>Objects:</strong> ${img.objects ? img.objects.join(', ') : 'None detected'}</p>
+                                    <p><strong>Colors:</strong> ${img.colors ? img.colors.length : 0} colors</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    parseHTML += '</div>';
+                    parseHTML += '</div>';
+                } else if (data.search_query) {
+                    console.log('🔍 No auto-search results, but search query available:', data.search_query);
+                    parseHTML += '<div class="result-card">';
+                    parseHTML += '<h3>🔍 Auto-Search</h3>';
+                    parseHTML += `<p style="color: #333;">Search query: <span style="color: #333;">"${data.search_query}"</span></p>`;
+                    parseHTML += '<p style="color: #666;"><em>No matching images found. Try indexing your Google Drive images first.</em></p>';
+                    parseHTML += '</div>';
+                } else {
+                    console.log('❌ No auto-search results and no search query');
+                }
+                
+                // Auto-populate search fields
+                if (requirements.location) {
+                    document.getElementById('search-query').value = `modern ${requirements.location}`;
+                }
+                
+                if (requirements.required_objects && requirements.required_objects.length > 0) {
+                    document.getElementById('required-objects').value = requirements.required_objects.join(', ');
+                }
+                
+                if (requirements.required_colors && requirements.required_colors.length > 0) {
+                    const colorNames = requirements.required_colors.map(color => getColorName(color)).filter(name => name);
+                    document.getElementById('required-colors').value = colorNames.join(', ');
+                }
+                
+                console.log('📝 Rendering parse results...');
+                document.getElementById('parse-results').innerHTML = parseHTML;
+                
+                // Load images for auto-search results
+                if (data.auto_search_results && data.auto_search_results.length > 0) {
+                    console.log('🖼️ Loading images for auto-search results...');
+                    data.auto_search_results.forEach((img, index) => {
+                        console.log(`Loading image ${index}:`, img.file_id);
+                        loadImage(img.file_id, `auto-result-${index}`);
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Parse error:', error);
+                document.getElementById('parse-results').innerHTML = `<div class="status error">❌ Parsing failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Helper function to convert color names to RGB
+        function getColorRGB(colorName) {
+            const colors = {
+                'red': [255, 0, 0],
+                'blue': [0, 0, 255],
+                'green': [0, 128, 0],
+                'yellow': [255, 255, 0],
+                'purple': [128, 0, 128],
+                'pink': [255, 192, 203],
+                'orange': [255, 165, 0],
+                'brown': [139, 69, 19],
+                'black': [0, 0, 0],
+                'white': [255, 255, 255],
+                'gray': [128, 128, 128],
+                'grey': [128, 128, 128]
+            };
+            return colors[colorName.toLowerCase()];
+        }
+        
+        // Helper function to convert RGB to color name
+        function getColorName(rgb) {
+            const colors = {
+                'red': [255, 0, 0],
+                'blue': [0, 0, 255],
+                'green': [0, 128, 0],
+                'yellow': [255, 255, 0],
+                'purple': [128, 0, 128],
+                'pink': [255, 192, 203],
+                'orange': [255, 165, 0],
+                'brown': [139, 69, 19],
+                'black': [0, 0, 0],
+                'white': [255, 255, 255],
+                'gray': [128, 128, 128]
+            };
+            
+            for (const [name, color] of Object.entries(colors)) {
+                if (Math.abs(rgb[0] - color[0]) < 30 && Math.abs(rgb[1] - color[1]) < 30 && Math.abs(rgb[2] - color[2]) < 30) {
+                    return name;
+                }
+            }
+            return null;
+        }
+        
+        // Initialize the page
+        checkStatus();
+    </script>
+</body>
+</html>
