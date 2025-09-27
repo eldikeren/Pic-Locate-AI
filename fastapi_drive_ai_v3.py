@@ -700,7 +700,8 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             # Download image with SSL error handling
             request = service.files().get_media(fileId=file_id)
             try:
-                file_bytes = io.BytesIO(request.execute())
+                file_content = request.execute()
+                file_bytes = io.BytesIO(file_content)
             except Exception as ssl_error:
                 if "SSL" in str(ssl_error) or "wrong version number" in str(ssl_error):
                     print(f"   ⚠️ SSL error downloading {file_name}, skipping...")
@@ -708,7 +709,12 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
                 else:
                     raise ssl_error
             
-            img = Image.open(file_bytes).convert("RGB")
+            try:
+                img = Image.open(file_bytes).convert("RGB")
+            finally:
+                # Ensure the BytesIO object is properly handled
+                if hasattr(file_bytes, 'close'):
+                    file_bytes.close()
             
             # CLIP embedding
             inputs = clip_processor(images=img, return_tensors="pt")
@@ -1413,7 +1419,8 @@ async def get_image(file_id: str):
                     media_type="image/png",
                     headers={"Content-Disposition": f"inline; filename=error_placeholder.png"}
                 )
-            except:
+            except Exception as placeholder_error:
+                print(f"❌ Failed to create placeholder: {placeholder_error}")
                 return JSONResponse(status_code=404, content={"error": f"File not found: {str(e)}"})
         
         # Download file content with timeout and better error handling
