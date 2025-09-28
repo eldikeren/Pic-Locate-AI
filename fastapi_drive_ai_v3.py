@@ -74,6 +74,24 @@ async def global_exception_handler(request, exc):
         content={"error": "Internal server error", "detail": str(exc)}
     )
 
+# Add middleware to handle CORS and other issues
+@app.middleware("http")
+async def add_cors_and_error_handling(request: Request, call_next):
+    """Add CORS headers and handle errors gracefully"""
+    try:
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+    except Exception as e:
+        print(f"❌ Middleware error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Request processing error"},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
 # Session storage for authentication
 auth_sessions = {}
 
@@ -767,6 +785,8 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
                 crawl_drive_images(service, folder_id=folder['id'], folder_path=new_folder_path, max_images=max_images)
             except Exception as e:
                 print(f"   ❌ Error crawling folder {folder['name']}: {e}")
+                print(f"   ⏭️ Continuing with next folder...")
+                continue  # Continue with next folder instead of stopping
     except Exception as e:
         print(f"   ❌ Error getting subfolders: {e}")
 
@@ -1384,16 +1404,36 @@ async def get_image(file_id: str):
     try:
         print(f"🖼️ Loading image: {file_id}")
         
-        # Simple, direct approach without complex timeouts
+        # Simple, direct approach with better error handling
         try:
-            # Get file metadata
-            file_metadata = drive_service.files().get(fileId=file_id).execute()
-            print(f"✅ File metadata retrieved: {file_metadata.get('name', 'Unknown')}")
+            # Get file metadata with error handling
+            try:
+                file_metadata = drive_service.files().get(fileId=file_id).execute()
+                print(f"✅ File metadata retrieved: {file_metadata.get('name', 'Unknown')}")
+            except Exception as meta_error:
+                print(f"❌ Failed to get file metadata: {meta_error}")
+                # Return placeholder for metadata errors
+                placeholder = create_placeholder_image()
+                return StreamingResponse(
+                    io.BytesIO(placeholder),
+                    media_type="image/png",
+                    headers={"Content-Disposition": f"inline; filename=metadata_error.png"}
+                )
             
-            # Download file content
-            request = drive_service.files().get_media(fileId=file_id)
-            file_content = request.execute()
-            print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
+            # Download file content with error handling
+            try:
+                request = drive_service.files().get_media(fileId=file_id)
+                file_content = request.execute()
+                print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
+            except Exception as download_error:
+                print(f"❌ Failed to download image: {download_error}")
+                # Return placeholder for download errors
+                placeholder = create_placeholder_image()
+                return StreamingResponse(
+                    io.BytesIO(placeholder),
+                    media_type="image/png",
+                    headers={"Content-Disposition": f"inline; filename=download_error.png"}
+                )
             
             # Determine content type
             mime_type = file_metadata.get('mimeType', 'image/jpeg')
@@ -1405,14 +1445,14 @@ async def get_image(file_id: str):
             )
             
         except Exception as e:
-            print(f"❌ Failed to download image: {e}")
+            print(f"❌ Unexpected error in image serving: {e}")
             # Return placeholder image for any error
             try:
                 placeholder = create_placeholder_image()
                 return StreamingResponse(
                     io.BytesIO(placeholder),
                     media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=placeholder.png"}
+                    headers={"Content-Disposition": f"inline; filename=error_placeholder.png"}
                 )
             except:
                 return JSONResponse(status_code=500, content={"error": "Image unavailable"})
