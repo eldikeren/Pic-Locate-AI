@@ -1467,9 +1467,11 @@
                 document.getElementById('storyboard-results').innerHTML = analysisHTML;
                 
                 // Load images asynchronously
-                result.similar_images.forEach((img, index) => {
-                    loadImage(img.file_id, `storyboard-result-${index}`);
-                });
+                if (result.similar_images && Array.isArray(result.similar_images)) {
+                    result.similar_images.forEach((img, index) => {
+                        loadImage(img.file_id, `storyboard-result-${index}`);
+                    });
+                }
                 
                 // Clear the file input
                 fileInput.value = '';
@@ -1737,7 +1739,7 @@
                 document.getElementById('parse-results').innerHTML = parseHTML;
                 
                 // Load images for auto-search results
-                if (data.auto_search_results && data.auto_search_results.length > 0) {
+                if (data.auto_search_results && Array.isArray(data.auto_search_results) && data.auto_search_results.length > 0) {
                     console.log('🖼️ Loading images for auto-search results...');
                     data.auto_search_results.forEach((img, index) => {
                         console.log(`Loading image ${index}:`, img.file_id);

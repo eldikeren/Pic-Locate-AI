@@ -1384,109 +1384,37 @@ async def get_image(file_id: str):
     try:
         print(f"🖼️ Loading image: {file_id}")
         
-        # Add a small delay to prevent overwhelming the API
-        await asyncio.sleep(0.1)
-        
-        # Get file metadata with timeout and SSL error handling
+        # Simple, direct approach without complex timeouts
         try:
-            file_metadata = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    None, 
-                    lambda: drive_service.files().get(fileId=file_id).execute() if drive_service else None
-                ),
-                timeout=5.0
-            )
+            # Get file metadata
+            file_metadata = drive_service.files().get(fileId=file_id).execute()
             print(f"✅ File metadata retrieved: {file_metadata.get('name', 'Unknown')}")
-        except asyncio.TimeoutError:
-            print(f"❌ Timeout getting file metadata: {file_id}")
-            # Return placeholder image for timeout
-            try:
-                placeholder = create_placeholder_image()
-                return StreamingResponse(
-                    io.BytesIO(placeholder),
-                    media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=timeout_placeholder.png"}
-                )
-            except:
-                return JSONResponse(status_code=408, content={"error": "Request timeout"})
-        except Exception as e:
-            print(f"❌ Failed to get file metadata: {e}")
-            # Return placeholder image for SSL/connection errors
-            try:
-                placeholder = create_placeholder_image()
-                return StreamingResponse(
-                    io.BytesIO(placeholder),
-                    media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=error_placeholder.png"}
-                )
-            except Exception as placeholder_error:
-                print(f"❌ Failed to create placeholder: {placeholder_error}")
-                return JSONResponse(status_code=404, content={"error": f"File not found: {str(e)}"})
-        
-        # Download file content with timeout and better error handling
-        try:
-            def download_image():
-                if not drive_service:
-                    raise Exception("Drive service not available")
-                try:
-                    request = drive_service.files().get_media(fileId=file_id)
-                    file_content = io.BytesIO()
-                    downloader = request.execute()
-                    file_content.write(downloader)
-                    file_content.seek(0)
-                    return file_content.getvalue()
-                except Exception as e:
-                    print(f"❌ Download error in executor: {e}")
-                    # Try alternative download method
-                    try:
-                        request = drive_service.files().get_media(fileId=file_id)
-                        import urllib3
-                        http = urllib3.PoolManager()
-                        response = http.request('GET', request.uri, headers=request.headers)
-                        return response.data
-                    except Exception as e2:
-                        print(f"❌ Alternative download also failed: {e2}")
-                        raise e
             
-            image_data = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(None, download_image),
-                timeout=15.0
-            )
-            print(f"✅ Image downloaded successfully, size: {len(image_data)} bytes")
+            # Download file content
+            request = drive_service.files().get_media(fileId=file_id)
+            file_content = request.execute()
+            print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
             
             # Determine content type
             mime_type = file_metadata.get('mimeType', 'image/jpeg')
             
             return StreamingResponse(
-                io.BytesIO(image_data),
+                io.BytesIO(file_content),
                 media_type=mime_type,
                 headers={"Content-Disposition": f"inline; filename={file_metadata.get('name', 'image')}"}
             )
             
-        except asyncio.TimeoutError:
-            print(f"❌ Timeout downloading image: {file_id}")
-            # Return placeholder image for timeout
-            try:
-                placeholder = create_placeholder_image()
-                return StreamingResponse(
-                    io.BytesIO(placeholder),
-                    media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=download_timeout.png"}
-                )
-            except:
-                return JSONResponse(status_code=408, content={"error": "Download timeout"})
         except Exception as e:
             print(f"❌ Failed to download image: {e}")
-            # Return a placeholder image for SSL/connection errors
+            # Return placeholder image for any error
             try:
                 placeholder = create_placeholder_image()
                 return StreamingResponse(
                     io.BytesIO(placeholder),
                     media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=download_error.png"}
+                    headers={"Content-Disposition": f"inline; filename=placeholder.png"}
                 )
-            except Exception as placeholder_error:
-                print(f"❌ Failed to create placeholder: {placeholder_error}")
+            except:
                 return JSONResponse(status_code=500, content={"error": "Image unavailable"})
                 
     except Exception as e:
