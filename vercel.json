@@ -2,14 +2,25 @@
   "version": 2,
   "builds": [
     {
+      "src": "fastapi_drive_ai_v3.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/",
+      "src": "/api/(.*)",
+      "dest": "/fastapi_drive_ai_v3.py"
+    },
+    {
+      "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "OPENAI_API_KEY": "@openai-api-key"
+  }
 }

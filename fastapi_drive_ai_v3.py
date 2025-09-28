@@ -18,6 +18,16 @@ import torch
 import cv2
 import numpy as np
 from collections import Counter
+import ssl
+import urllib3
+
+# Configure SSL to handle Google Drive SSL issues
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # YOLOv8: ultralytics
 from ultralytics import YOLO
@@ -319,7 +329,7 @@ def color_match_score(dominant_colors, target_colors_rgb):
     score = 0
     for target in target_colors_rgb:
         # Calculate distance to closest dominant color
-        distances = [np.linalg.norm(np.array(c) - np.array(target)) for c in dominant_colors]
+        distances = [float(np.linalg.norm(np.array(c) - np.array(target))) for c in dominant_colors]
         min_distance = min(distances) if distances else 1.0
         
         # Normalize distance (max possible distance in RGB space is sqrt(3*255^2))
@@ -471,9 +481,10 @@ def auth_drive():
     global drive_service
 
     # Check if we already have a working connection
-    if drive_service and _connection_cache.get("last_auth_time"):
+    last_auth_time = _connection_cache.get("last_auth_time")
+    if drive_service and last_auth_time:
         import time
-        time_since_auth = time.time() - _connection_cache["last_auth_time"]
+        time_since_auth = time.time() - last_auth_time
         if time_since_auth < 300:  # 5 minutes cache
             print("🚀 Using cached Google Drive connection")
             return {
@@ -504,7 +515,9 @@ def auth_drive():
                 # Quick connection test with timeout
                 def test_connection():
                     try:
-                        return drive_service.files().list(pageSize=1).execute()
+                        if drive_service:
+                            return drive_service.files().list(pageSize=1).execute()
+                        return None
                     except Exception as e:
                         print(f"❌ Connection test failed: {e}")
                         return None
@@ -526,10 +539,8 @@ def auth_drive():
                 
                 # Cache the connection
                 import time
-                _connection_cache.update({
-                    "last_auth_time": time.time(),
-                    "cached_session": session_id
-                })
+                _connection_cache["last_auth_time"] = time.time()
+                _connection_cache["cached_session"] = session_id
 
                 return {
                     "status": "authenticated",
@@ -615,7 +626,7 @@ def auth_drive():
         return {"error": f"Authentication failed: {str(e)}"}
 
 @app.get("/auth/status")
-def check_auth_status(session_id: str = None):
+def check_auth_status(session_id: str | None = None):
     """Check if user is authenticated"""
     global drive_service
     
@@ -670,7 +681,7 @@ def check_auth_status(session_id: str = None):
             }
 
 @app.post("/auth/disconnect")
-def disconnect(session_id: str = None):
+def disconnect(session_id: str | None = None):
     """Disconnect from Google Drive and clear session"""
     global drive_service
     
