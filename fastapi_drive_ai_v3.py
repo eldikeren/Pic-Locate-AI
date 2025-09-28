@@ -20,6 +20,10 @@ import numpy as np
 from collections import Counter
 import ssl
 import urllib3
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure SSL to handle Google Drive SSL issues
 ssl_context = ssl.create_default_context()
