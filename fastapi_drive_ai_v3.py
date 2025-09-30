@@ -215,7 +215,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Hebrew-English mapping for enhanced search
 HEBREW_ENGLISH_MAPPING = {
-    # Room types
+    # 1. סוגי חדרים (Room Types)
     'סלון': 'living room',
     'מטבח': 'kitchen', 
     'פינת אוכל': 'dining area',
@@ -229,19 +229,19 @@ HEBREW_ENGLISH_MAPPING = {
     'חצר': 'yard',
     'בריכה': 'pool',
     
-    # Design styles
-    'מודרני': 'modern',
-    'כפרי': 'rustic',
-    'תעשייתי': 'industrial',
-    'סקנדינבי': 'scandinavian',
-    'אקלקטי': 'eclectic',
-    'מינימליסטי': 'minimalist',
-    'רטרו': 'retro',
-    'וינטג': 'vintage',
-    'בוהו שיק': 'boho chic',
-    'עיצוב אורבני': 'urban design',
+    # 2. מבנה ותכנון חלל (Structure and Space Planning)
+    'סלון פתוח למטבח': 'open living kitchen',
+    'מטבח עם אי': 'kitchen with island',
+    'תקרה גבוהה': 'high ceiling',
+    'תקרת עץ': 'wooden ceiling',
+    'חלונות פנורמיים': 'panoramic windows',
+    'חדר עם גלריה': 'room with gallery',
+    'דלתות הזזה מזכוכית': 'sliding glass doors',
+    'מסדרון ארוך': 'long corridor',
+    'חדר עם קירות זכוכית': 'room with glass walls',
+    'קיר מחיצה דקורטיבי': 'decorative partition wall',
     
-    # Flooring
+    # 3. סוגי ריצוף (Flooring Types)
     'פרקט עץ טבעי': 'natural wood parquet',
     'בטון מוחלק': 'polished concrete',
     'אריחי קרמיקה': 'ceramic tiles',
@@ -253,7 +253,19 @@ HEBREW_ENGLISH_MAPPING = {
     'רצפת אפוקסי': 'epoxy floor',
     'מרצפות מצוירות': 'painted tiles',
     
-    # Materials
+    # 4. סגנון עיצובי (Design Style)
+    'מודרני': 'modern',
+    'כפרי': 'rustic',
+    'תעשייתי': 'industrial',
+    'סקנדינבי': 'scandinavian',
+    'אקלקטי': 'eclectic',
+    'מינימליסטי': 'minimalist',
+    'רטרו': 'retro',
+    'וינטג': 'vintage',
+    'בוהו שיק': 'boho chic',
+    'עיצוב אורבני': 'urban design',
+    
+    # 5. חומרי גמר (Finishing Materials)
     'קירות בטון חשוף': 'exposed concrete walls',
     'עץ מלא': 'solid wood',
     'זכוכית מחוסמת': 'tempered glass',
@@ -265,7 +277,43 @@ HEBREW_ENGLISH_MAPPING = {
     'טפטים דקורטיביים': 'decorative wallpaper',
     'מתכת אלומיניום': 'aluminum metal',
     
-    # Lighting
+    # 6. תקרות (Ceilings)
+    'תקרה עם קורות עץ': 'ceiling with wooden beams',
+    'תקרה גבוהה': 'high ceiling',
+    'תקרה נמוכה': 'low ceiling',
+    'תקרה עם תאורה נסתרת': 'ceiling with hidden lighting',
+    'תקרת גבס מעוצבת': 'designed plaster ceiling',
+    'תקרה משופעת': 'sloped ceiling',
+    'תקרה מקומרת': 'arched ceiling',
+    'תקרת זכוכית': 'glass ceiling',
+    'תקרה עם חלון גג': 'ceiling with skylight',
+    'תקרה אקוסטית': 'acoustic ceiling',
+    
+    # 7. פתחים ומעברים (Openings and Transitions)
+    'חלונות קיר-לקיר': 'wall to wall windows',
+    'דלתות זכוכית': 'glass doors',
+    'חלונות בלגיים': 'Belgian windows',
+    'פתחים עגולים': 'round openings',
+    'דלתות עץ מלא': 'solid wood doors',
+    'תריסים מעץ': 'wooden shutters',
+    'חלונות עם מסגרת מתכת': 'windows with metal frame',
+    'חלונות גג': 'skylights',
+    'דלתות פלדה': 'steel doors',
+    'פתחי תאורה בתקרה': 'ceiling light openings',
+    
+    # 8. קומות ומבנה (Floors and Structure)
+    'דירה בקומת קרקע': 'ground floor apartment',
+    'דירה בקומה עליונה': 'top floor apartment',
+    'דופלקס': 'duplex',
+    'נטהאוז': 'penthouse',
+    'לופט': 'loft',
+    'וילה עירונית': 'urban villa',
+    'קוטג פרברי': 'suburban cottage',
+    'בית לשימור': 'heritage house',
+    'מבנה תעשייתי': 'industrial building',
+    'מבנה מודרני': 'modern building',
+    
+    # 9. תאורה (Lighting)
     'תאורה טבעית': 'natural lighting',
     'תאורת לד נסתרת': 'hidden LED lighting',
     'מנורות תקרה מעוצבות': 'designed ceiling lights',
@@ -277,31 +325,67 @@ HEBREW_ENGLISH_MAPPING = {
     'תאורת שולחן': 'table lighting',
     'תאורת חוץ': 'outdoor lighting',
     
-    # Furniture
+    # 10. ריהוט (Furniture)
     'ספות עור': 'leather sofas',
     'שולחן אוכל מעץ מלא': 'solid wood dining table',
     'שולחן קפה': 'coffee table',
     'כורסאות בד': 'fabric armchairs',
     'כסאות בר': 'bar stools',
     'מיטה זוגית': 'double bed',
-    'ארון קיר': 'wall closet',
+    'ארון קיר': 'wall wardrobe',
     'מדפים פתוחים': 'open shelves',
     'פינת ישיבה': 'seating area',
     'שולחן עבודה': 'work desk',
     
-    # Colors
+    # 11. קירות (Walls)
+    'קיר לבנים חשוף': 'exposed brick wall',
+    'קיר עם טפטים': 'wall with wallpaper',
+    'קיר צבעוני': 'colored wall',
+    'קיר עם אריחים דקורטיביים': 'wall with decorative tiles',
+    'קיר עם תמונות אמנות': 'wall with art pictures',
+    'קיר עם מראה גדולה': 'wall with large mirror',
+    'קיר מעץ טבעי': 'natural wood wall',
+    'קיר עם דלתות נסתרות': 'wall with hidden doors',
+    'קיר גבס אקוסטי': 'acoustic plaster wall',
+    'קיר עם תאורה פנימית': 'wall with internal lighting',
+    
+    # 12. חצר וגינה (Yard and Garden)
+    'גינה פרטית': 'private garden',
+    'גינה אורבנית': 'urban garden',
+    'מרפסת תלויה': 'hanging balcony',
+    'חצר פנימית': 'inner courtyard',
+    'גג ירוק': 'green roof',
+    'דק עץ': 'wooden deck',
+    'אזור ישיבה חיצוני': 'outdoor seating area',
+    'בריכת שחייה פרטית': 'private swimming pool',
+    'גינה ים-תיכונית': 'Mediterranean garden',
+    'שבילי גינה מרוצפים': 'paved garden paths',
+    
+    # 13. אקססוריז דקורטיביים (Decorative Accessories)
+    'כריות נוי': 'decorative cushions',
+    'שטיחים מעוצבים': 'designed rugs',
+    'תמונות קיר': 'wall pictures',
+    'וילונות בד': 'fabric curtains',
+    'פסלים מודרניים': 'modern sculptures',
+    'נרות ריחניים': 'scented candles',
+    'אגרטלים זכוכית': 'glass vases',
+    'מראות מעוצבות': 'designed mirrors',
+    'כלי חרס': 'ceramic vessels',
+    'עציצים וצמחים ירוקים': 'pots and green plants',
+    
+    # 14. צבעוניות (Color Palette)
     'מונוכרומטי': 'monochromatic',
     'גווני פסטל': 'pastel tones',
     'צבעים ניטרליים': 'neutral colors',
     'פלטת צבעים חמה': 'warm color palette',
     'פלטת צבעים קרה': 'cool color palette',
     'גוונים כהים ועשירים': 'dark and rich tones',
-    'קירות צבעוניים': 'colorful walls',
-    'ניגודי שחור ולבן': 'black and white contrast',
+    'קירות צבעוניים': 'colored walls',
+    'ניגודי שחור ולבן': 'black and white contrasts',
     'צבעי אדמה': 'earth colors',
     'גוונים בהירים ומאווררים': 'bright and airy tones',
     
-    # Space characteristics
+    # 15. אופי החלל (Space Character)
     'חלל פתוח': 'open space',
     'חלל רב-תכליתי': 'multi-purpose space',
     'חלל אינטימי': 'intimate space',
@@ -309,9 +393,10 @@ HEBREW_ENGLISH_MAPPING = {
     'חלל רשמי': 'formal space',
     'חלל מחולק באלגנטיות': 'elegantly divided space',
     'חלל עם נוף פתוח': 'space with open view',
-    'חלל מרווח': 'spacious',
+    'חלל מרווח': 'spacious area',
     'חלל קומפקטי': 'compact space',
-    'חלל מואר היטב': 'well-lit space'
+    'חלל מואר היטב': 'well-lit space',
+    
 }
 
 # CLIP model via transformers
@@ -1026,17 +1111,43 @@ def extract_requirements_from_text(text):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are an expert in analyzing Hebrew and English text to extract interior design and architectural requirements from storyboards and design documents.
+                    "content": """You are an expert in analyzing Hebrew and English text to extract comprehensive interior design and architectural requirements from storyboards and design documents.
 
-CRITICAL: The text is in Hebrew. Pay special attention to Hebrew words and their meanings. Look for locations, styles, objects, and colors mentioned in the text.
+CRITICAL: The text is in Hebrew. Pay special attention to Hebrew words and their meanings. Look for ALL categories mentioned in the text.
 
-Extract the following information from the text:
-1. LOCATIONS: kitchen (מטבח), bedroom (חדר שינה), living room (סלון), bathroom (שירותים/אמבטיה), dining room (פינת אוכל), office (משרד), nursery (חדר ילדים), garden (גן), garage (חניה), balcony (מרפסת), rooftop (גג עירוני), street (רחוב), beach (חוף ים), city (עיר), urban street (רחוב אורבני), etc.
-2. STYLES: modern (מודרני), traditional (מסורתי), rustic (כפרי), industrial (תעשייתי), scandinavian (סקנדינבי), bohemian (בוהו), luxury (יוקרתי), urban (אורבני), etc.
-3. OBJECTS: island (אי), bed (מיטה), sofa (ספה), table (שולחן), chair (כיסא), stove (כיריים), sink (כיור), lamp (מנורה), cabinet (ארון), mirror (מראה), rug (שטיח), curtain (וילון), window (חלון), door (דלת), large windows (חלונות גדולים), open kitchen (מטבח פתוח), etc.
-4. COLORS: red (אדום), blue (כחול), green (ירוק), yellow (צהוב), white (לבן), black (שחור), gray (אפור), brown (חום), pink (ורוד), purple (סגול), orange (כתום), warm colors (צבעים חמים), etc.
+Extract the following comprehensive information from the text:
 
-IMPORTANT: Look for specific locations mentioned like "רחוב מרכזי בעיר", "דירה מודרנית", "חוף ים", "גג עירוני", etc.
+1. ROOM TYPES (סוגי חדרים): סלון, מטבח, פינת אוכל, חדר שינה ראשי, חדר שינה ילדים, חדר עבודה, חדר רחצה ראשי, חדר רחצה אורחים, חדר משחקים, מרפסת סגורה, חצר, בריכה
+
+2. STRUCTURE & SPACE PLANNING (מבנה ותכנון חלל): סלון פתוח למטבח, מטבח עם אי, תקרה גבוהה, תקרת עץ, חלונות פנורמיים, חדר עם גלריה, דלתות הזזה מזכוכית, מסדרון ארוך, חדר עם קירות זכוכית, קיר מחיצה דקורטיבי
+
+3. FLOORING TYPES (סוגי ריצוף): פרקט עץ טבעי, בטון מוחלק, אריחי קרמיקה, רצפת שיש, שטיחים מקיר לקיר, רצפת טרצו, רצפת לינוליאום, רצפת עץ למינציה, רצפת אפוקסי, מרצפות מצוירות
+
+4. DESIGN STYLES (סגנון עיצובי): מודרני, כפרי, תעשייתי, סקנדינבי, אקלקטי, מינימליסטי, רטרו, וינטג', בוהו שיק, עיצוב אורבני
+
+5. FINISHING MATERIALS (חומרי גמר): קירות בטון חשוף, עץ מלא, זכוכית מחוסמת, פליז מבריק, ברזל שחור, עור איכותי, אריחים מאבן טבעית, טיח מינרלי, טפטים דקורטיביים, מתכת אלומיניום
+
+6. CEILINGS (תקרות): תקרה עם קורות עץ, תקרה גבוהה, תקרה נמוכה, תקרה עם תאורה נסתרת, תקרת גבס מעוצבת, תקרה משופעת, תקרה מקומרת, תקרת זכוכית, תקרה עם חלון גג, תקרה אקוסטית
+
+7. OPENINGS & TRANSITIONS (פתחים ומעברים): חלונות קיר-לקיר, דלתות זכוכית, חלונות בלגיים, פתחים עגולים, דלתות עץ מלא, תריסים מעץ, חלונות עם מסגרת מתכת, חלונות גג, דלתות פלדה, פתחי תאורה בתקרה
+
+8. FLOORS & STRUCTURE (קומות ומבנה): דירה בקומת קרקע, דירה בקומה עליונה, דופלקס, פנטהאוז, לופט, וילה עירונית, קוטג' פרברי, בית לשימור, מבנה תעשייתי, מבנה מודרני
+
+9. LIGHTING (תאורה): תאורה טבעית, תאורת לד נסתרת, מנורות תקרה מעוצבות, מנורות קיר, תאורת אווירה, תאורה מתכווננת, תאורת פלורסנט, נברשות קריסטל, תאורת שולחן, תאורת חוץ
+
+10. FURNITURE (ריהוט): ספות עור, שולחן אוכל מעץ מלא, שולחן קפה, כורסאות בד, כסאות בר, מיטה זוגית, ארון קיר, מדפים פתוחים, פינת ישיבה, שולחן עבודה
+
+11. WALLS (קירות): קיר לבנים חשוף, קיר עם טפטים, קיר צבעוני, קיר עם אריחים דקורטיביים, קיר עם תמונות אמנות, קיר עם מראה גדולה, קיר מעץ טבעי, קיר עם דלתות נסתרות, קיר גבס אקוסטי, קיר עם תאורה פנימית
+
+12. YARD & GARDEN (חצר וגינה): גינה פרטית, גינה אורבנית, מרפסת תלויה, חצר פנימית, גג ירוק, דק עץ, אזור ישיבה חיצוני, בריכת שחייה פרטית, גינה ים-תיכונית, שבילי גינה מרוצפים
+
+13. DECORATIVE ACCESSORIES (אקססוריז דקורטיביים): כריות נוי, שטיחים מעוצבים, תמונות קיר, וילונות בד, פסלים מודרניים, נרות ריחניים, אגרטלים זכוכית, מראות מעוצבות, כלי חרס, עציצים וצמחים ירוקים
+
+14. COLOR PALETTE (צבעוניות): מונוכרומטי, גווני פסטל, צבעים ניטרליים, פלטת צבעים חמה, פלטת צבעים קרה, גוונים כהים ועשירים, קירות צבעוניים, ניגודי שחור ולבן, צבעי אדמה, גוונים בהירים ומאווררים
+
+15. SPACE CHARACTER (אופי החלל): חלל פתוח, חלל רב-תכליתי, חלל אינטימי, חלל עם זרימה טבעית, חלל רשמי, חלל מחולק באלגנטיות, חלל עם נוף פתוח, חלל מרווח, חלל קומפקטי, חלל מואר היטב
+
+IMPORTANT: Look for specific locations mentioned like "רחוב מרכזי בעיר", "דירה מודרנית", "חוף ים", "גג עירוני", etc. Be comprehensive and identify ALL relevant categories from the text.
 
 Return ONLY a JSON object with this exact structure:
 {
@@ -1079,21 +1190,20 @@ If no requirements are found, return empty arrays and null for location."""
         return extract_requirements_fallback(text)
 
 def extract_requirements_fallback(text):
-    """Fallback method using simple keyword matching"""
+    """Fallback method using comprehensive keyword matching for all 15 categories"""
     text_lower = text.lower()
     
-    # Location detection (Hebrew + English)
+    # 1. Room Types (סוגי חדרים)
     locations = {
         "kitchen": ["kitchen", "cooking", "cook", "stove", "sink", "island", "מטבח", "מטבחון", "כיריים", "תנור", "כיור", "מטבח פתוח"],
-        "bedroom": ["bedroom", "bed", "sleep", "master", "guest", "חדר שינה", "מיטה"],
+        "bedroom": ["bedroom", "bed", "sleep", "master", "guest", "חדר שינה", "חדר שינה ראשי", "חדר שינה ילדים", "מיטה"],
         "living room": ["living room", "lounge", "sitting", "tv", "sofa", "סלון", "חדר מגורים", "סלון מודרני"],
-        "bathroom": ["bathroom", "bath", "shower", "toilet", "vanity", "שירותים", "אמבטיה"],
         "dining room": ["dining", "dinner", "table", "eat", "פינת אוכל", "חדר אוכל"],
         "office": ["office", "study", "work", "desk", "computer", "משרד", "חדר עבודה"],
-        "nursery": ["nursery", "baby", "child", "kids", "crib", "חדר ילדים", "חדר תינוק"],
-        "garden": ["garden", "yard", "גן", "גינה"],
-        "garage": ["garage", "חניה", "מוסך"],
-        "balcony": ["balcony", "terrace", "מרפסת"],
+        "bathroom": ["bathroom", "bath", "shower", "toilet", "vanity", "שירותים", "אמבטיה", "חדר רחצה ראשי", "חדר רחצה אורחים"],
+        "nursery": ["nursery", "baby", "child", "kids", "crib", "חדר ילדים", "חדר תינוק", "חדר משחקים"],
+        "garden": ["garden", "yard", "גן", "גינה", "חצר", "בריכה"],
+        "balcony": ["balcony", "terrace", "מרפסת", "מרפסת סגורה"],
         "rooftop": ["rooftop", "roof", "גג", "גג עירוני", "גג עירוני עם נוף"],
         "street": ["street", "רחוב", "רחוב מרכזי", "רחוב אורבני", "רחוב אורבני שוקק"],
         "beach": ["beach", "sea", "חוף", "חוף ים", "ים התיכון", "חוף ים בשעת שקיעה"],
@@ -1107,26 +1217,173 @@ def extract_requirements_fallback(text):
             detected_location = location
             break
     
-    # Style detection (Hebrew + English)
+    # 2. Structure & Space Planning (מבנה ותכנון חלל)
+    structure_keywords = [
+        "סלון פתוח למטבח", "מטבח עם אי", "תקרה גבוהה", "תקרת עץ", "חלונות פנורמיים",
+        "חדר עם גלריה", "דלתות הזזה מזכוכית", "מסדרון ארוך", "חדר עם קירות זכוכית", "קיר מחיצה דקורטיבי"
+    ]
+    
+    # 3. Flooring Types (סוגי ריצוף)
+    flooring_keywords = [
+        "פרקט עץ טבעי", "בטון מוחלק", "אריחי קרמיקה", "רצפת שיש", "שטיחים מקיר לקיר",
+        "רצפת טרצו", "רצפת לינוליאום", "רצפת עץ למינציה", "רצפת אפוקסי", "מרצפות מצוירות"
+    ]
+    
+    # 4. Design Styles (סגנון עיצובי)
     styles = {
         "modern": ["modern", "contemporary", "sleek", "minimalist", "מודרני", "מודרנית"],
-        "traditional": ["traditional", "classic", "vintage", "antique", "מסורתי", "מסורתית"],
         "rustic": ["rustic", "farmhouse", "country", "wooden", "כפרי", "כפרית"],
         "industrial": ["industrial", "metal", "concrete", "exposed", "תעשייתי", "תעשייתית"],
         "scandinavian": ["scandinavian", "scandi", "nordic", "hygge", "סקנדינבי", "סקנדינבית"],
-        "bohemian": ["bohemian", "boho", "eclectic", "vibrant", "בוהו"],
-        "luxury": ["luxury", "luxurious", "premium", "high-end", "יוקרתי", "יוקרתית"],
-        "poor": ["poor", "basic", "simple", "cheap", "עני", "ענייה"],
-        "rich": ["rich", "wealthy", "expensive", "opulent", "עשיר", "עשירה"]
+        "eclectic": ["eclectic", "mixed", "varied", "אקלקטי", "אקלקטית"],
+        "minimalist": ["minimalist", "minimal", "clean", "simple", "מינימליסטי", "מינימליסטית"],
+        "retro": ["retro", "vintage", "classic", "רטרו", "וינטג"],
+        "boho chic": ["bohemian", "boho", "vibrant", "בוהו שיק"],
+        "urban design": ["urban", "city", "metropolitan", "עיצוב אורבני"]
     }
+    
+    # 5. Finishing Materials (חומרי גמר)
+    materials_keywords = [
+        "קירות בטון חשוף", "עץ מלא", "זכוכית מחוסמת", "פליז מבריק", "ברזל שחור",
+        "עור איכותי", "אריחים מאבן טבעית", "טיח מינרלי", "טפטים דקורטיביים", "מתכת אלומיניום"
+    ]
+    
+    # 6. Ceilings (תקרות)
+    ceiling_keywords = [
+        "תקרה עם קורות עץ", "תקרה גבוהה", "תקרה נמוכה", "תקרה עם תאורה נסתרת", "תקרת גבס מעוצבת",
+        "תקרה משופעת", "תקרה מקומרת", "תקרת זכוכית", "תקרה עם חלון גג", "תקרה אקוסטית"
+    ]
+    
+    # 7. Openings & Transitions (פתחים ומעברים)
+    openings_keywords = [
+        "חלונות קיר-לקיר", "דלתות זכוכית", "חלונות בלגיים", "פתחים עגולים", "דלתות עץ מלא",
+        "תריסים מעץ", "חלונות עם מסגרת מתכת", "חלונות גג", "דלתות פלדה", "פתחי תאורה בתקרה"
+    ]
+    
+    # 8. Floors & Structure (קומות ומבנה)
+    structure_types = [
+        "דירה בקומת קרקע", "דירה בקומה עליונה", "דופלקס", "נטהאוז", "לופט",
+        "וילה עירונית", "קוטג' פרברי", "בית לשימור", "מבנה תעשייתי", "מבנה מודרני"
+    ]
+    
+    # 9. Lighting (תאורה)
+    lighting_keywords = [
+        "תאורה טבעית", "תאורת לד נסתרת", "מנורות תקרה מעוצבות", "מנורות קיר", "תאורת אווירה",
+        "תאורה מתכווננת", "תאורת פלורסנט", "נברשות קריסטל", "תאורת שולחן", "תאורת חוץ"
+    ]
+    
+    # 10. Furniture (ריהוט)
+    furniture_keywords = [
+        "ספות עור", "שולחן אוכל מעץ מלא", "שולחן קפה", "כורסאות בד", "כסאות בר",
+        "מיטה זוגית", "ארון קיר", "מדפים פתוחים", "פינת ישיבה", "שולחן עבודה"
+    ]
+    
+    # 11. Walls (קירות)
+    wall_keywords = [
+        "קיר לבנים חשוף", "קיר עם טפטים", "קיר צבעוני", "קיר עם אריחים דקורטיביים", "קיר עם תמונות אמנות",
+        "קיר עם מראה גדולה", "קיר מעץ טבעי", "קיר עם דלתות נסתרות", "קיר גבס אקוסטי", "קיר עם תאורה פנימית"
+    ]
+    
+    # 12. Yard & Garden (חצר וגינה)
+    garden_keywords = [
+        "גינה פרטית", "גינה אורבנית", "מרפסת תלויה", "חצר פנימית", "גג ירוק",
+        "דק עץ", "אזור ישיבה חיצוני", "בריכת שחייה פרטית", "גינה ים-תיכונית", "שבילי גינה מרוצפים"
+    ]
+    
+    # 13. Decorative Accessories (אקססוריז דקורטיביים)
+    accessories_keywords = [
+        "כריות נוי", "שטיחים מעוצבים", "תמונות קיר", "וילונות בד", "פסלים מודרניים",
+        "נרות ריחניים", "אגרטלים זכוכית", "מראות מעוצבות", "כלי חרס", "עציצים וצמחים ירוקים"
+    ]
+    
+    # 14. Color Palette (צבעוניות)
+    color_keywords = [
+        "מונוכרומטי", "גווני פסטל", "צבעים ניטרליים", "פלטת צבעים חמה", "פלטת צבעים קרה",
+        "גוונים כהים ועשירים", "קירות צבעוניים", "ניגודי שחור ולבן", "צבעי אדמה", "גוונים בהירים ומאווררים"
+    ]
+    
+    # 15. Space Character (אופי החלל)
+    space_character_keywords = [
+        "חלל פתוח", "חלל רב-תכליתי", "חלל אינטימי", "חלל עם זרימה טבעית", "חלל רשמי",
+        "חלל מחולק באלגנטיות", "חלל עם נוף פתוח", "חלל מרווח", "חלל קומפקטי", "חלל מואר היטב"
+    ]
     
     detected_styles = []
     for style, keywords in styles.items():
         if any(keyword in text_lower for keyword in keywords):
             detected_styles.append(style)
     
-    # Object detection (Hebrew + English) - Enhanced
-    objects = {
+    # Detect all other categories
+    detected_objects = []
+    detected_colors = []
+    
+    # Check for structure keywords
+    for keyword in structure_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for flooring keywords
+    for keyword in flooring_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for materials keywords
+    for keyword in materials_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for ceiling keywords
+    for keyword in ceiling_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for openings keywords
+    for keyword in openings_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for structure types
+    for keyword in structure_types:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for lighting keywords
+    for keyword in lighting_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for furniture keywords
+    for keyword in furniture_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for wall keywords
+    for keyword in wall_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for garden keywords
+    for keyword in garden_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for accessories keywords
+    for keyword in accessories_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Check for color keywords
+    for keyword in color_keywords:
+        if keyword in text_lower:
+            detected_colors.append(keyword)
+    
+    # Check for space character keywords
+    for keyword in space_character_keywords:
+        if keyword in text_lower:
+            detected_objects.append(keyword)
+    
+    # Add basic object detection for common items
+    basic_objects = {
         "island": ["island", "kitchen island", "אי", "אי מטבח"],
         "bed": ["bed", "bedframe", "headboard", "מיטה", "מיטות"],
         "sofa": ["sofa", "couch", "settee", "ספה", "ספות"],
@@ -1139,14 +1396,13 @@ def extract_requirements_fallback(text):
         "mirror": ["mirror", "reflection", "מראה", "מראות"],
         "rug": ["rug", "carpet", "mat", "שטיח", "שטיחים"],
         "curtain": ["curtain", "drape", "blind", "וילון", "וילונות"],
-        "window": ["window", "windows", "חלון", "חלונות", "חלונות גדולים", "חלונות גדולים"],
+        "window": ["window", "windows", "חלון", "חלונות", "חלונות גדולים"],
         "door": ["door", "doors", "דלת", "דלתות"],
         "marble": ["marble", "שיש", "אבן שיש"],
         "faucet": ["faucet", "tap", "ברז", "ברזים", "ברז מודרני"]
     }
     
-    detected_objects = []
-    for obj, keywords in objects.items():
+    for obj, keywords in basic_objects.items():
         if any(keyword in text_lower for keyword in keywords):
             detected_objects.append(obj)
     
@@ -1171,22 +1427,13 @@ def extract_requirements_fallback(text):
         if any(keyword in text_lower for keyword in keywords):
             detected_colors.append(color_name)
     
-    # If no requirements detected, return empty structure
-    if not detected_location and not detected_styles and not detected_objects and not detected_colors:
-        return {
-            "location": None,
-            "style": [],
-            "required_objects": [],
-            "required_colors": [],
-            "message": "No specific requirements detected in the document"
-        }
-    
-        return {
-            "location": detected_location,
-            "style": detected_styles,
-            "required_objects": detected_objects,
-            "required_colors": detected_colors
-        }
+    # Return comprehensive results
+    return {
+        "location": detected_location,
+        "style": detected_styles,
+        "required_objects": detected_objects,
+        "required_colors": detected_colors
+    }
 
 def generate_ai_proposal(selected_images, requirements=None):
     """Generate AI proposal for selected images"""
