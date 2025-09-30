@@ -944,9 +944,18 @@ def auth_drive():
                 flow.redirect_uri = 'http://localhost:8080/callback'
                 print("✅ OAuth flow created successfully")
                 
-                print("🌐 Starting OAuth server on port 0...")
-                creds = flow.run_local_server(port=0)
-                print("✅ OAuth authentication completed")
+                # For web applications, we need to return the authorization URL
+                # instead of running a local server
+                auth_url, _ = flow.authorization_url(prompt='consent')
+                print(f"🌐 OAuth authorization URL: {auth_url}")
+                
+                return {
+                    "status": "oauth_required",
+                    "message": "OAuth authorization required",
+                    "auth_url": auth_url,
+                    "method": "oauth_new",
+                    "instructions": "Please visit the auth_url to complete OAuth authentication"
+                }
                 
                 print("🔧 Building Drive service...")
                 drive_service = build('drive', 'v3', credentials=creds)
@@ -1005,9 +1014,18 @@ def auth_drive():
                 flow.redirect_uri = 'http://localhost:8080/callback'
                 print("✅ OAuth flow created successfully")
                 
-                print("🌐 Starting OAuth server on port 0...")
-                creds = flow.run_local_server(port=0)
-                print("✅ OAuth authentication completed")
+                # For web applications, we need to return the authorization URL
+                # instead of running a local server
+                auth_url, _ = flow.authorization_url(prompt='consent')
+                print(f"🌐 OAuth authorization URL: {auth_url}")
+                
+                return {
+                    "status": "oauth_required",
+                    "message": "OAuth authorization required",
+                    "auth_url": auth_url,
+                    "method": "oauth_old",
+                    "instructions": "Please visit the auth_url to complete OAuth authentication"
+                }
                 
                 print("🔧 Building Drive service...")
                 drive_service = build('drive', 'v3', credentials=creds)
