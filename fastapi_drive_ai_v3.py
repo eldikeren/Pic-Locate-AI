@@ -22,9 +22,17 @@ import pytesseract
 import ssl
 import urllib3
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Supabase configuration
+SUPABASE_URL = "https://gezmablgrepoaamtizts.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdlem1hYmxncmVwb2FhbXRpenRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNzg2MzMsImV4cCI6MjA3NDc1NDYzM30.lJjaubEzeET8OwcHWJ_x_pOAXd8Bc1yDbpdvKianLM0"
+
+# Initialize Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Configure SSL to handle Google Drive SSL issues
 ssl_context = ssl.create_default_context()
@@ -565,6 +573,82 @@ def extract_text_ocr(image):
         print(f"OCR error: {e}")
         return ""
 
+# Supabase Vector Database Functions
+def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor, objects: list, colors: list, folder: str, ocr_text: str):
+    """Store image embedding and metadata in Supabase"""
+    try:
+        # Convert tensor to list for JSON storage
+        embedding_list = embedding.cpu().numpy().tolist()
+        
+        # Prepare data for Supabase
+        data = {
+            "file_id": file_id,
+            "file_name": file_name,
+            "embedding": embedding_list,
+            "objects": objects,
+            "colors": colors,
+            "folder": folder,
+            "ocr_text": ocr_text,
+            "created_at": "now()"
+        }
+        
+        # Insert into Supabase
+        result = supabase.table("image_embeddings").insert(data).execute()
+        print(f"✅ Stored embedding for {file_name} in Supabase")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to store embedding in Supabase: {e}")
+        return False
+
+def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filters: dict = None):
+    """Search for similar images using Supabase vector similarity"""
+    try:
+        # Convert query embedding to list
+        query_vector = query_embedding.cpu().numpy().tolist()
+        
+        # Build the query
+        query = supabase.table("image_embeddings").select("*")
+        
+        # Add filters if provided
+        if filters:
+            if filters.get("objects"):
+                query = query.contains("objects", filters["objects"])
+            if filters.get("folder"):
+                query = query.eq("folder", filters["folder"])
+        
+        # Perform vector similarity search
+        # Note: This requires pgvector extension in Supabase
+        result = query.execute()
+        
+        if not result.data:
+            return []
+        
+        # Calculate similarities manually (since pgvector might not be set up)
+        similarities = []
+        for row in result.data:
+            stored_embedding = torch.tensor(row["embedding"])
+            similarity = torch.cosine_similarity(query_embedding, stored_embedding, dim=0).item()
+            similarities.append((row, similarity))
+        
+        # Sort by similarity and return top_k
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_k]
+        
+    except Exception as e:
+        print(f"❌ Supabase search failed: {e}")
+        return []
+
+def clear_supabase_embeddings():
+    """Clear all embeddings from Supabase"""
+    try:
+        result = supabase.table("image_embeddings").delete().neq("file_id", "").execute()
+        print(f"✅ Cleared {len(result.data)} embeddings from Supabase")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to clear Supabase embeddings: {e}")
+        return False
+
 def color_match_score(dominant_colors, target_colors_rgb):
     """Compute color match score between dominant colors and target colors"""
     if not target_colors_rgb or not dominant_colors:
@@ -1007,7 +1091,7 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             # OCR text extraction
             ocr_text = extract_text_ocr(img)
             
-            # Store in index
+            # Store in local index
             image_index[file_id] = {
                 "name": file_name,
                 "embedding": embedding.cpu(),
@@ -1016,6 +1100,9 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
                 "folder": folder_path,
                 "ocr_text": ocr_text
             }
+            
+            # Store in Supabase vector database
+            store_image_embedding(file_id, file_name, embedding, objects, colors, folder_path, ocr_text)
             
             print(f"Indexed: {file_name} - Objects: {objects} - Colors: {colors}")
             
@@ -1387,8 +1474,129 @@ async def search_with_feedback(request: dict):
         "timestamp": time.time()
     })
     
-    # Perform search
-    return search_images(search_req)
+    # Perform search with Supabase
+    return await search_images_supabase(search_req)
+
+async def search_images_supabase(req: SearchRequest):
+    """Enhanced search using Supabase vector database"""
+    print(f"🔍 Supabase search request: {req.query}")
+    
+    # Translate Hebrew query to English for better CLIP understanding
+    translated_query = translate_hebrew_query(req.query)
+    print(f"🔄 Translated query: '{req.query}' -> '{translated_query}'")
+    
+    # Apply special guidelines if provided
+    if req.special_guidelines:
+        translated_query += f" {req.special_guidelines}"
+        print(f"📋 Applied guidelines: {req.special_guidelines}")
+    
+    # Encode text query with CLIP
+    text_inputs = clip_processor(text=[translated_query], return_tensors="pt", padding=True)
+    text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
+    with torch.no_grad():
+        text_features = clip_model.get_text_features(**text_inputs)
+        text_emb = text_features / text_features.norm(dim=-1, keepdim=True)
+    
+    # Try Supabase vector search first
+    print("🔍 Attempting Supabase vector search...")
+    supabase_results = search_similar_images(text_emb, req.top_k, {
+        "objects": req.required_objects if req.required_objects else None,
+        "folder": None  # No folder filter for now
+    })
+    
+    if supabase_results:
+        print(f"✅ Found {len(supabase_results)} results from Supabase")
+        # Convert Supabase results to our format
+        results = []
+        for row_data, similarity in supabase_results:
+            results.append((
+                row_data["file_id"],
+                row_data["file_name"],
+                similarity,
+                row_data["objects"],
+                row_data["colors"],
+                similarity,  # semantic_score
+                1.0,  # object_score (already filtered)
+                1.0,  # color_score
+                row_data["folder"]
+            ))
+        
+        # Apply folder diversity if we have enough results
+        if len(results) > req.top_k:
+            folder_groups = {}
+            for r in results:
+                folder = r[8]
+                if folder not in folder_groups:
+                    folder_groups[folder] = []
+                folder_groups[folder].append(r)
+            
+            diverse_results = []
+            max_per_folder = max(1, req.top_k // len(folder_groups)) if folder_groups else req.top_k
+            
+            for folder, folder_results in folder_groups.items():
+                diverse_results.extend(folder_results[:max_per_folder])
+            
+            diverse_results.sort(key=lambda x: x[2], reverse=True)
+            final_results = diverse_results[:req.top_k]
+        else:
+            final_results = results
+        
+        print(f"🏆 Top {min(5, len(final_results))} Supabase search results:")
+        for i, r in enumerate(final_results[:5]):
+            print(f"  {i+1}. {r[1]} - Score: {r[2]:.4f} - Folder: {r[8]} - Objects: {r[3]}")
+        
+        return JSONResponse(content=[{
+            "file_id": r[0],
+            "name": r[1],
+            "score": round(r[2], 4),
+            "objects": r[3],
+            "colors": r[4],
+            "semantic_score": round(r[5], 4),
+            "object_score": round(r[6], 4),
+            "color_score": round(r[7], 4),
+            "folder": r[8]
+        } for r in final_results])
+    
+    print("⚠️ Supabase search failed, falling back to local search...")
+    # Fallback to original search
+    return search_images(req)
+
+@app.post("/clear_supabase")
+async def clear_supabase():
+    """Clear all embeddings from Supabase"""
+    try:
+        success = clear_supabase_embeddings()
+        if success:
+            return {"status": "success", "message": "Supabase embeddings cleared successfully"}
+        else:
+            return {"status": "error", "message": "Failed to clear Supabase embeddings"}
+    except Exception as e:
+        return {"status": "error", "message": f"Error clearing Supabase: {str(e)}"}
+
+@app.post("/setup_supabase_table")
+async def setup_supabase_table():
+    """Create the image_embeddings table in Supabase"""
+    try:
+        # This would typically be done via SQL, but we'll try to create via API
+        # For now, just return success - the table should be created manually in Supabase
+        return {
+            "status": "success", 
+            "message": "Please create the 'image_embeddings' table in Supabase with columns: file_id, file_name, embedding, objects, colors, folder, ocr_text, created_at",
+            "sql": """
+            CREATE TABLE image_embeddings (
+                file_id TEXT PRIMARY KEY,
+                file_name TEXT,
+                embedding VECTOR(512),
+                objects TEXT[],
+                colors INTEGER[][],
+                folder TEXT,
+                ocr_text TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            """
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Error setting up table: {str(e)}"}
 
 @app.post("/export_collection_pdf")
 async def export_collection_pdf(request: dict):
