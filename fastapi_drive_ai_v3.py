@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -3026,6 +3027,20 @@ async def analyze_storyboard(storyboard: UploadFile = File(...), guidelines: str
 
 @app.get("/")
 def root():
+    """Serve the main HTML interface"""
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError:
+        return {
+            "error": "index.html not found",
+            "message": "Please ensure index.html is in the project root directory"
+        }
+
+@app.get("/api")
+def api_info():
+    """Get API endpoints information"""
     return {
         "message": "Google Drive AI Search v3 with YOLOv8 running",
         "endpoints": {
@@ -3034,6 +3049,7 @@ def root():
             "auth_disconnect": "/auth/disconnect - Disconnect from Google Drive",
             "index": "/index - Index all Drive images",
             "search": "/search - Search images with AI",
+            "search_with_feedback": "/search_with_feedback - Advanced search with feedback",
             "parse": "/parse_requirements - Parse storyboard/PDF",
             "upload": "/upload_images - Upload and index images",
             "storyboard": "/analyze_storyboard - Analyze storyboard and find similar images",
@@ -3041,6 +3057,9 @@ def root():
             "image": "/image/{file_id} - Get image from Drive",
             "uploaded": "/uploaded_image/{file_id} - Get uploaded image",
             "export": "/export_pdf - Export images to PDF",
-            "health": "/health - Health check"
+            "health": "/health - Health check",
+            "test_supabase": "/test_supabase - Test Supabase connection",
+            "setup_supabase": "/setup_supabase_table - Setup Supabase table",
+            "clear_supabase": "/clear_supabase - Clear Supabase data"
         }
     }
