@@ -588,17 +588,17 @@ def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor,
             "objects": objects,
             "colors": colors,
             "folder": folder,
-            "ocr_text": ocr_text,
-            "created_at": "now()"
+            "ocr_text": ocr_text
         }
         
-        # Insert into Supabase
-        result = supabase.table("image_embeddings").insert(data).execute()
-        print(f"✅ Stored embedding for {file_name} in Supabase")
+        # Use upsert to avoid duplicates
+        result = supabase.table("image_embeddings").upsert(data, on_conflict="file_id").execute()
+        print(f"✅ Stored/Updated embedding for {file_name} in Supabase")
         return True
         
     except Exception as e:
         print(f"❌ Failed to store embedding in Supabase: {e}")
+        print(f"   Data: {data}")
         return False
 
 def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filters: dict = None):
@@ -648,6 +648,40 @@ def clear_supabase_embeddings():
     except Exception as e:
         print(f"❌ Failed to clear Supabase embeddings: {e}")
         return False
+
+def is_image_indexed(file_id: str):
+    """Check if an image is already indexed in Supabase"""
+    try:
+        result = supabase.table("image_embeddings").select("file_id").eq("file_id", file_id).execute()
+        return len(result.data) > 0
+    except Exception as e:
+        print(f"❌ Failed to check if image is indexed: {e}")
+        return False
+
+def load_existing_embeddings():
+    """Load existing embeddings from Supabase into local index"""
+    try:
+        result = supabase.table("image_embeddings").select("*").execute()
+        if result.data:
+            print(f"📥 Loading {len(result.data)} existing embeddings from Supabase...")
+            for row in result.data:
+                file_id = row["file_id"]
+                image_index[file_id] = {
+                    "name": row["file_name"],
+                    "embedding": torch.tensor(row["embedding"]),
+                    "objects": row["objects"],
+                    "colors": row["colors"],
+                    "folder": row["folder"],
+                    "ocr_text": row["ocr_text"]
+                }
+            print(f"✅ Loaded {len(result.data)} embeddings into local index")
+            return len(result.data)
+        else:
+            print("📭 No existing embeddings found in Supabase")
+            return 0
+    except Exception as e:
+        print(f"❌ Failed to load existing embeddings: {e}")
+        return 0
 
 def color_match_score(dominant_colors, target_colors_rgb):
     """Compute color match score between dominant colors and target colors"""
@@ -834,6 +868,12 @@ def auth_drive():
                 scopes=['https://www.googleapis.com/auth/drive.readonly']
             )
             drive_service = build('drive', 'v3', credentials=creds)
+            
+            # Auto-load existing embeddings from Supabase
+            print("📥 Auto-loading existing embeddings...")
+            loaded_count = load_existing_embeddings()
+            if loaded_count > 0:
+                print(f"✅ Auto-loaded {loaded_count} existing embeddings")
 
             # Test the connection with timeout
             try:
@@ -909,6 +949,12 @@ def auth_drive():
                         session_id = str(uuid.uuid4())
                         save_credentials_to_session(session_id, creds)
                         print(f"💾 Session saved: {session_id}")
+                        
+                        # Auto-load existing embeddings from Supabase
+                        print("📥 Auto-loading existing embeddings...")
+                        loaded_count = load_existing_embeddings()
+                        if loaded_count > 0:
+                            print(f"✅ Auto-loaded {loaded_count} existing embeddings")
 
                         return {
                             "status": "authenticated",
@@ -1054,6 +1100,11 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             
         file_id = file['id']
         file_name = file['name']
+        
+        # Check if image is already indexed
+        if is_image_indexed(file_id):
+            print(f"   ⏭️ Skipping {file_name} - already indexed")
+            continue
         
         try:
             # Download image with SSL error handling
@@ -1597,6 +1648,30 @@ async def setup_supabase_table():
         }
     except Exception as e:
         return {"status": "error", "message": f"Error setting up table: {str(e)}"}
+
+@app.get("/test_supabase")
+async def test_supabase():
+    """Test Supabase connection and check table"""
+    try:
+        # Test basic connection
+        result = supabase.table("image_embeddings").select("count").execute()
+        
+        # Get table info
+        table_info = supabase.table("image_embeddings").select("*").limit(5).execute()
+        
+        return {
+            "status": "success",
+            "message": "Supabase connection successful",
+            "table_exists": True,
+            "sample_data": table_info.data,
+            "total_records": len(table_info.data)
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": f"Supabase connection failed: {str(e)}",
+            "table_exists": False
+        }
 
 @app.post("/export_collection_pdf")
 async def export_collection_pdf(request: dict):
