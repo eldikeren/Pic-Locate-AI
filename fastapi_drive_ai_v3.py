@@ -177,6 +177,8 @@ def clear_session(session_id: str):
 
 drive_service = None
 image_index = {}  # {file_id: {'name': str, 'embedding': tensor, 'objects': [], 'colors': []}}
+collected_images = {}  # Store selected images across searches
+search_feedback = {}   # Store search feedback for learning
 
 def create_company_logo():
     """Create the Idan Locations company logo as an image"""
@@ -1045,6 +1047,10 @@ class SearchRequest(BaseModel):
     required_objects: list = []       # e.g., ["island"]
     required_colors: list = []        # e.g., [[128,0,128]] for purple
     top_k: int = 5
+    special_guidelines: str = ""      # Special search guidelines
+    feedback_images: list = []        # Images to use as positive feedback
+    negative_feedback: list = []      # Images to avoid
+    search_session_id: str = ""       # To track search sessions
 
 def search_images_internal(search_request):
     """Internal search function that returns results as list (not JSONResponse)"""
@@ -1112,6 +1118,26 @@ def search_images(req: SearchRequest):
     translated_query = translate_hebrew_query(req.query)
     print(f"🔄 Translated query: '{req.query}' -> '{translated_query}'")
     
+    # Apply special guidelines if provided
+    if req.special_guidelines:
+        translated_query += f" {req.special_guidelines}"
+        print(f"📋 Applied guidelines: {req.special_guidelines}")
+    
+    # Process feedback images for learning
+    feedback_boost = 0
+    if req.feedback_images:
+        print(f"🎯 Using {len(req.feedback_images)} feedback images for learning")
+        # Calculate average embedding of feedback images
+        feedback_embeddings = []
+        for fid in req.feedback_images:
+            if fid in image_index:
+                feedback_embeddings.append(image_index[fid]['embedding'])
+        
+        if feedback_embeddings:
+            # Average the feedback embeddings
+            avg_feedback = torch.stack(feedback_embeddings).mean(dim=0)
+            feedback_boost = 0.3  # Boost for similar images
+    
     # Encode text query with CLIP
     text_inputs = clip_processor(text=[translated_query], return_tensors="pt", padding=True)
     text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
@@ -1121,8 +1147,17 @@ def search_images(req: SearchRequest):
 
     results = []
     for fid, data in image_index.items():
+        # Skip negative feedback images
+        if fid in req.negative_feedback:
+            continue
+            
         # Semantic similarity score
         sim = (text_emb.cpu() @ data['embedding'].T).item()
+        
+        # Apply feedback boost if available
+        if req.feedback_images and feedback_boost > 0:
+            feedback_sim = (avg_feedback.cpu() @ data['embedding'].T).item()
+            sim = max(sim, sim + feedback_sim * feedback_boost)
         
         # Object filter score - enhanced for room type detection
         if req.required_objects:
@@ -1175,6 +1210,164 @@ def search_images(req: SearchRequest):
         "color_score": round(r[7], 4),
         "folder": r[8]
     } for r in results[:req.top_k]])
+
+# ---------------------------
+# Advanced Search Features
+# ---------------------------
+
+@app.post("/add_to_collection")
+async def add_to_collection(request: dict):
+    """Add selected images to the collection"""
+    global collected_images
+    
+    file_ids = request.get("file_ids", [])
+    file_names = request.get("file_names", [])
+    search_session_id = request.get("search_session_id", "default")
+    
+    if not file_ids:
+        return {"error": "No file IDs provided"}
+    
+    # Initialize collection for this session if not exists
+    if search_session_id not in collected_images:
+        collected_images[search_session_id] = []
+    
+    # Add images to collection
+    for file_id, file_name in zip(file_ids, file_names):
+        if file_id in image_index:
+            image_data = image_index[file_id].copy()
+            image_data['file_id'] = file_id
+            image_data['file_name'] = file_name
+            image_data['added_at'] = time.time()
+            
+            # Avoid duplicates
+            if not any(img['file_id'] == file_id for img in collected_images[search_session_id]):
+                collected_images[search_session_id].append(image_data)
+    
+    return {
+        "status": "success",
+        "message": f"Added {len(file_ids)} images to collection",
+        "collection_size": len(collected_images[search_session_id])
+    }
+
+@app.get("/get_collection/{session_id}")
+async def get_collection(session_id: str):
+    """Get collected images for a session"""
+    if session_id not in collected_images:
+        return {"images": [], "count": 0}
+    
+    return {
+        "images": collected_images[session_id],
+        "count": len(collected_images[session_id])
+    }
+
+@app.post("/clear_collection")
+async def clear_collection(request: dict):
+    """Clear collected images for a session"""
+    global collected_images
+    
+    session_id = request.get("session_id", "default")
+    if session_id in collected_images:
+        del collected_images[session_id]
+        return {"status": "success", "message": "Collection cleared"}
+    else:
+        return {"status": "error", "message": "No collection found for session"}
+
+@app.post("/search_with_feedback")
+async def search_with_feedback(request: dict):
+    """Perform search with feedback from previous results"""
+    query = request.get("query", "")
+    guidelines = request.get("guidelines", "")
+    feedback_images = request.get("feedback_images", [])
+    negative_feedback = request.get("negative_feedback", [])
+    search_session_id = request.get("search_session_id", "default")
+    top_k = request.get("top_k", 10)
+    
+    # Create search request with feedback
+    search_req = SearchRequest(
+        query=query,
+        special_guidelines=guidelines,
+        feedback_images=feedback_images,
+        negative_feedback=negative_feedback,
+        search_session_id=search_session_id,
+        top_k=top_k
+    )
+    
+    # Store feedback for learning
+    if search_session_id not in search_feedback:
+        search_feedback[search_session_id] = []
+    
+    search_feedback[search_session_id].append({
+        "query": query,
+        "guidelines": guidelines,
+        "feedback_images": feedback_images,
+        "negative_feedback": negative_feedback,
+        "timestamp": time.time()
+    })
+    
+    # Perform search
+    return search_images(search_req)
+
+@app.post("/export_collection_pdf")
+async def export_collection_pdf(request: dict):
+    """Export collected images to PDF"""
+    session_id = request.get("session_id", "default")
+    
+    if session_id not in collected_images or not collected_images[session_id]:
+        return {"error": "No images in collection"}
+    
+    # Prepare file data for export
+    file_ids = [img['file_id'] for img in collected_images[session_id]]
+    file_names = [img['file_name'] for img in collected_images[session_id]]
+    
+    # Use existing PDF export function
+    export_request = {
+        "file_ids": file_ids,
+        "file_names": file_names
+    }
+    
+    return await export_pdf(export_request)
+
+@app.post("/export_collection_word")
+async def export_collection_word(request: dict):
+    """Export collected images to Word document"""
+    session_id = request.get("session_id", "default")
+    
+    if session_id not in collected_images or not collected_images[session_id]:
+        return {"error": "No images in collection"}
+    
+    # Prepare file data for export
+    file_ids = [img['file_id'] for img in collected_images[session_id]]
+    file_names = [img['file_name'] for img in collected_images[session_id]]
+    
+    # Use existing Word export function
+    export_request = {
+        "file_ids": file_ids,
+        "file_names": file_names,
+        "include_proposal": False
+    }
+    
+    return await export_word(export_request)
+
+@app.post("/export_collection_ppt")
+async def export_collection_ppt(request: dict):
+    """Export collected images to PowerPoint presentation"""
+    session_id = request.get("session_id", "default")
+    
+    if session_id not in collected_images or not collected_images[session_id]:
+        return {"error": "No images in collection"}
+    
+    # Prepare file data for export
+    file_ids = [img['file_id'] for img in collected_images[session_id]]
+    file_names = [img['file_name'] for img in collected_images[session_id]]
+    
+    # Use existing PowerPoint export function
+    export_request = {
+        "file_ids": file_ids,
+        "file_names": file_names,
+        "include_proposal": False
+    }
+    
+    return await export_ppt(export_request)
 
 # ---------------------------
 # 4️⃣ Parse Storyboard / PDF
