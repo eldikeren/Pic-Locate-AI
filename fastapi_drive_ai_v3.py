@@ -42,7 +42,8 @@ from transformers import CLIPProcessor, CLIPModel
 # PDF generation
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Image as RLImage, Spacer, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.units import inch
 from docx import Document
 from pptx import Presentation
@@ -176,6 +177,104 @@ def clear_session(session_id: str):
 
 drive_service = None
 image_index = {}  # {file_id: {'name': str, 'embedding': tensor, 'objects': [], 'colors': []}}
+
+def create_company_logo():
+    """Create the Idan Locations company logo as an image"""
+    try:
+        # Create logo image with company branding
+        img = Image.new('RGB', (400, 120), color='black')
+        draw = ImageDraw.Draw(img)
+        
+        # Try to use a default font, fallback to basic if not available
+        try:
+            title_font = ImageFont.truetype("arial.ttf", 32)
+            subtitle_font = ImageFont.truetype("arial.ttf", 24)
+        except:
+            title_font = ImageFont.load_default()
+            subtitle_font = ImageFont.load_default()
+        
+        # Company name colors (teal with orange outline)
+        teal_color = (0, 128, 128)  # Dark teal
+        orange_color = (255, 165, 0)  # Orange
+        
+        # Draw "Idan" with outline effect
+        idan_text = "Idan"
+        idan_bbox = draw.textbbox((0, 0), idan_text, font=title_font)
+        idan_width = idan_bbox[2] - idan_bbox[0]
+        idan_height = idan_bbox[3] - idan_bbox[1]
+        
+        # Draw outline (orange)
+        for dx in [-2, -1, 0, 1, 2]:
+            for dy in [-2, -1, 0, 1, 2]:
+                if dx != 0 or dy != 0:
+                    draw.text((20 + dx, 20 + dy), idan_text, fill=orange_color, font=title_font)
+        
+        # Draw main text (teal)
+        draw.text((20, 20), idan_text, fill=teal_color, font=title_font)
+        
+        # Draw "Locations" with outline effect
+        locations_text = "Locations"
+        locations_bbox = draw.textbbox((0, 0), locations_text, font=subtitle_font)
+        locations_width = locations_bbox[2] - locations_bbox[0]
+        
+        # Draw outline (orange)
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx != 0 or dy != 0:
+                    draw.text((20 + dx, 60 + dy), locations_text, fill=orange_color, font=subtitle_font)
+        
+        # Draw main text (teal)
+        draw.text((20, 60), locations_text, fill=teal_color, font=subtitle_font)
+        
+        # Draw a simple location pin icon (orange carrot-like shape)
+        pin_x = 300
+        pin_y = 40
+        
+        # Draw pin body (carrot shape)
+        pin_points = [
+            (pin_x, pin_y + 40),  # Bottom point
+            (pin_x - 15, pin_y + 20),  # Left side
+            (pin_x - 10, pin_y),  # Top left
+            (pin_x + 10, pin_y),  # Top right
+            (pin_x + 15, pin_y + 20)  # Right side
+        ]
+        draw.polygon(pin_points, fill=orange_color)
+        
+        # Draw leaves on top (green)
+        leaf_color = (0, 150, 0)
+        draw.ellipse([pin_x - 8, pin_y - 5, pin_x - 2, pin_y + 5], fill=leaf_color)
+        draw.ellipse([pin_x + 2, pin_y - 5, pin_x + 8, pin_y + 5], fill=leaf_color)
+        
+        # Draw camera aperture in center of pin
+        aperture_center = (pin_x, pin_y + 15)
+        aperture_radius = 8
+        draw.ellipse([
+            aperture_center[0] - aperture_radius, 
+            aperture_center[1] - aperture_radius,
+            aperture_center[0] + aperture_radius, 
+            aperture_center[1] + aperture_radius
+        ], fill='black', outline=orange_color, width=2)
+        
+        # Save to bytes
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='PNG')
+        img_bytes.seek(0)
+        return img_bytes.getvalue()
+        
+    except Exception as e:
+        print(f"Error creating company logo: {e}")
+        # Return a simple text-based logo as fallback
+        img = Image.new('RGB', (300, 80), color='black')
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype("arial.ttf", 24)
+        except:
+            font = ImageFont.load_default()
+        draw.text((50, 30), "Idan Locations", fill='white', font=font)
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='PNG')
+        img_bytes.seek(0)
+        return img_bytes.getvalue()
 
 def create_placeholder_image():
     """Create a placeholder image when the real image fails to load"""
@@ -1776,9 +1875,43 @@ async def export_pdf(request: dict):
         story = []
         styles = getSampleStyleSheet()
         
-        # Add title
-        title = Paragraph("Google Drive Images Export", styles['Title'])
-        story.append(title)
+        # Add company logo
+        try:
+            logo_data = create_company_logo()
+            logo_buffer = io.BytesIO(logo_data)
+            logo = RLImage(logo_buffer, width=3*inch, height=0.9*inch)
+            story.append(logo)
+            story.append(Spacer(1, 20))
+        except Exception as e:
+            print(f"Error adding logo to PDF: {e}")
+            # Add text title as fallback
+            title = Paragraph("Idan Locations", styles['Title'])
+            story.append(title)
+            story.append(Spacer(1, 12))
+        
+        # Add Hebrew introduction
+        hebrew_intro = """
+        אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
+        הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות.
+        """
+        
+        # Create custom style for Hebrew text
+        hebrew_style = ParagraphStyle(
+            'HebrewStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            alignment=TA_RIGHT,  # Right-to-left for Hebrew
+            fontName='Helvetica'
+        )
+        
+        intro_paragraph = Paragraph(hebrew_intro, hebrew_style)
+        story.append(intro_paragraph)
+        story.append(Spacer(1, 20))
+        
+        # Add section title
+        section_title = Paragraph("Selected Images", styles['Heading1'])
+        story.append(section_title)
         story.append(Spacer(1, 12))
         
         for i, (file_id, file_name) in enumerate(zip(file_ids, file_names)):
@@ -1836,7 +1969,7 @@ async def export_pdf(request: dict):
         return StreamingResponse(
             io.BytesIO(pdf_buffer.getvalue()),
             media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=google_drive_images.pdf"}
+            headers={"Content-Disposition": "attachment; filename=Idan_Locations_Proposal.pdf"}
         )
         
     except Exception as e:
@@ -1876,8 +2009,33 @@ async def export_word(request: dict):
         # Create Word document
         doc = Document()
         
-        # Add title with logo styling
+        # Add company logo
+        try:
+            logo_data = create_company_logo()
+            logo_buffer = io.BytesIO(logo_data)
+            logo_paragraph = doc.add_paragraph()
+            logo_run = logo_paragraph.runs[0] if logo_paragraph.runs else logo_paragraph.add_run()
+            logo_paragraph.alignment = 1  # Center alignment
+            # Note: Adding images to Word requires more complex handling
+            # For now, we'll add the company name as a styled heading
+        except Exception as e:
+            print(f"Error adding logo to Word: {e}")
+        
+        # Add company title
         title = doc.add_heading('Idan Locations', 0)
+        title.alignment = 1  # Center alignment
+        
+        # Add Hebrew introduction
+        hebrew_intro = """
+        אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
+        הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות.
+        """
+        
+        intro_paragraph = doc.add_paragraph(hebrew_intro)
+        intro_paragraph.alignment = 2  # Right alignment for Hebrew
+        doc.add_paragraph()  # Add spacing
+        
+        # Add subtitle
         subtitle = doc.add_heading('AI-Powered Design Proposal', level=1)
         
         # Add AI proposal if available
@@ -1974,7 +2132,7 @@ async def export_ppt(request: dict):
         # Create PowerPoint presentation
         prs = Presentation()
         
-        # Title slide
+        # Title slide with company branding
         title_slide_layout = prs.slide_layouts[0]
         slide = prs.slides.add_slide(title_slide_layout)
         title = slide.shapes.title
@@ -1982,6 +2140,19 @@ async def export_ppt(request: dict):
         
         title.text = "Idan Locations"
         subtitle.text = "AI-Powered Design Proposal"
+        
+        # Add Hebrew introduction slide
+        intro_slide_layout = prs.slide_layouts[1]
+        intro_slide = prs.slides.add_slide(intro_slide_layout)
+        intro_title = intro_slide.shapes.title
+        intro_content = intro_slide.placeholders[1]
+        
+        intro_title.text = "ברוכים הבאים"
+        hebrew_intro = """אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
+        
+הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות."""
+        
+        intro_content.text = hebrew_intro
         
         # AI proposal slides if available
         if proposal_text:
