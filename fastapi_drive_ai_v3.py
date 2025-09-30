@@ -537,6 +537,13 @@ def detect_objects_yolo(image):
 def extract_text_ocr(image):
     """Extract text from image using OCR"""
     try:
+        # Check if Tesseract is available
+        try:
+            pytesseract.get_tesseract_version()
+        except Exception:
+            print("⚠️ Tesseract OCR not available, skipping OCR text extraction")
+            return ""
+        
         # Convert PIL image to OpenCV format
         img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
@@ -1146,6 +1153,11 @@ def search_images(req: SearchRequest):
     # Translate Hebrew query to English for better CLIP understanding
     translated_query = translate_hebrew_query(req.query)
     print(f"🔄 Translated query: '{req.query}' -> '{translated_query}'")
+    
+    # Debug: Show sample of indexed images
+    sample_images = list(image_index.items())[:3]
+    for fid, data in sample_images:
+        print(f"📸 Sample image: {data['name']} - Objects: {data['objects']} - Folder: {data.get('folder', 'Unknown')}")
     
     # Apply special guidelines if provided
     if req.special_guidelines:
