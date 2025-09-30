@@ -435,6 +435,31 @@
             line-height: 1.4;
         }
         
+        .drive-link {
+            margin: 8px 0;
+            text-align: center;
+        }
+        
+        .drive-link-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .drive-link-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            text-decoration: none;
+            color: white;
+        }
+        
         .loading {
             text-align: center;
             padding: 40px;
@@ -906,6 +931,11 @@
                         <div class="result-card" id="result-${index}">
                             <input type="checkbox" class="checkbox" onchange="toggleSelection(${index})">
                             <div class="folder-info">📁 ${result.folder || 'Root'}</div>
+                            <div class="drive-link">
+                                <a href="https://drive.google.com/file/d/${result.file_id}/view" target="_blank" class="drive-link-btn">
+                                    🔗 View in Google Drive
+                                </a>
+                            </div>
                             <img class="result-image loading" 
                                  data-file-id="${result.file_id}" 
                                  data-index="${index}"
@@ -1447,6 +1477,11 @@
                                 <div class="result-card" id="storyboard-result-${index}">
                                     <input type="checkbox" class="checkbox" onchange="toggleStoryboardSelection(${index})">
                                     <div class="folder-info">📁 ${img.folder || 'Root'}</div>
+                                    <div class="drive-link">
+                                        <a href="https://drive.google.com/file/d/${img.file_id}/view" target="_blank" class="drive-link-btn">
+                                            🔗 View in Google Drive
+                                        </a>
+                                    </div>
                                     <img class="result-image loading" 
                                          data-file-id="${img.file_id}" 
                                          data-index="${index}"
@@ -1695,6 +1730,11 @@
                             <div class="result-card" id="auto-result-${index}">
                                 <input type="checkbox" class="checkbox" onchange="toggleAutoSelection(${index})">
                                 <div class="folder-info">📁 ${img.folder || 'Root'}</div>
+                                <div class="drive-link">
+                                    <a href="https://drive.google.com/file/d/${img.file_id}/view" target="_blank" class="drive-link-btn">
+                                        🔗 View in Google Drive
+                                    </a>
+                                </div>
                                 <img class="result-image loading" 
                                      data-file-id="${img.file_id}" 
                                      data-index="${index}"

@@ -1459,20 +1459,30 @@ async def get_image(file_id: str):
                     headers={"Content-Disposition": f"inline; filename=metadata_error.png"}
                 )
             
-            # Download file content with error handling
-            try:
-                request = drive_service.files().get_media(fileId=file_id)
-                file_content = request.execute()
-                print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
-            except Exception as download_error:
-                print(f"❌ Failed to download image: {download_error}")
-                # Return placeholder for download errors
-                placeholder = create_placeholder_image()
-                return StreamingResponse(
-                    io.BytesIO(placeholder),
-                    media_type="image/png",
-                    headers={"Content-Disposition": f"inline; filename=download_error.png"}
-                )
+            # Download file content with retry logic
+            file_content = None
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    print(f"🔄 Download attempt {attempt + 1}/{max_retries} for {file_id}")
+                    request = drive_service.files().get_media(fileId=file_id)
+                    file_content = request.execute()
+                    print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
+                    break
+                except Exception as download_error:
+                    print(f"❌ Download attempt {attempt + 1} failed: {download_error}")
+                    if attempt == max_retries - 1:
+                        print(f"❌ All {max_retries} download attempts failed for {file_id}")
+                        # Return placeholder for download errors
+                        placeholder = create_placeholder_image()
+                        return StreamingResponse(
+                            io.BytesIO(placeholder),
+                            media_type="image/png",
+                            headers={"Content-Disposition": f"inline; filename=download_error.png"}
+                        )
+                    else:
+                        import time
+                        time.sleep(1)  # Wait 1 second before retry
             
             # Determine content type
             mime_type = file_metadata.get('mimeType', 'image/jpeg')
