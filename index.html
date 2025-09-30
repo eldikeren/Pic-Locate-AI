@@ -1025,6 +1025,8 @@
                 
                 currentResults = results;
                 displaySearchResults(results);
+                document.getElementById('collection-section').style.display = 'block';
+                document.getElementById('reresearch-btn').disabled = false;
             } catch (error) {
                 document.getElementById('search-results').innerHTML = `<div class="status error">❌ Search failed: ${error.message}</div>`;
             }
@@ -2007,6 +2009,7 @@
                 
                 displaySearchResults(results);
                 document.getElementById('collection-section').style.display = 'block';
+                document.getElementById('reresearch-btn').disabled = false;
                 
             } catch (error) {
                 console.error('Re-search error:', error);

@@ -18,6 +18,7 @@ import torch
 import cv2
 import numpy as np
 from collections import Counter
+import pytesseract
 import ssl
 import urllib3
 from dotenv import load_dotenv
@@ -533,6 +534,30 @@ def detect_objects_yolo(image):
             objs.append(name.lower())
     return objs
 
+def extract_text_ocr(image):
+    """Extract text from image using OCR"""
+    try:
+        # Convert PIL image to OpenCV format
+        img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # Preprocess image for better OCR
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        
+        # Apply threshold to get better text recognition
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Extract text using Tesseract
+        text = pytesseract.image_to_string(thresh, lang='eng+heb')
+        
+        # Clean up text
+        text = text.strip().replace('\n', ' ').replace('\r', ' ')
+        text = ' '.join(text.split())  # Remove extra whitespace
+        
+        return text if text else ""
+    except Exception as e:
+        print(f"OCR error: {e}")
+        return ""
+
 def color_match_score(dominant_colors, target_colors_rgb):
     """Compute color match score between dominant colors and target colors"""
     if not target_colors_rgb or not dominant_colors:
@@ -972,13 +997,17 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             # YOLO object detection
             objects = detect_objects_yolo(img)
             
+            # OCR text extraction
+            ocr_text = extract_text_ocr(img)
+            
             # Store in index
             image_index[file_id] = {
                 "name": file_name,
                 "embedding": embedding.cpu(),
                 "objects": objects,
                 "colors": colors,
-                "folder": folder_path
+                "folder": folder_path,
+                "ocr_text": ocr_text
             }
             
             print(f"Indexed: {file_name} - Objects: {objects} - Colors: {colors}")
@@ -1154,6 +1183,25 @@ def search_images(req: SearchRequest):
         # Semantic similarity score
         sim = (text_emb.cpu() @ data['embedding'].T).item()
         
+        # OCR text matching boost
+        ocr_boost = 0
+        if data.get('ocr_text') and req.query:
+            ocr_text = data['ocr_text'].lower()
+            query_lower = req.query.lower()
+            
+            # Check for exact matches in OCR text
+            if query_lower in ocr_text:
+                ocr_boost = 0.3  # Significant boost for OCR matches
+            
+            # Check for partial matches
+            query_words = query_lower.split()
+            ocr_words = ocr_text.split()
+            matching_words = len(set(query_words) & set(ocr_words))
+            if matching_words > 0:
+                ocr_boost = max(ocr_boost, matching_words * 0.1)
+        
+        sim = sim + ocr_boost
+        
         # Apply feedback boost if available
         if req.feedback_images and feedback_boost > 0:
             feedback_sim = (avg_feedback.cpu() @ data['embedding'].T).item()
@@ -1194,10 +1242,33 @@ def search_images(req: SearchRequest):
     # Sort by score and return top results
     results.sort(key=lambda x: x[2], reverse=True)
     
+    # Add folder diversity to prevent bias towards one folder
+    if len(results) > req.top_k:
+        # Group results by folder
+        folder_groups = {}
+        for r in results:
+            folder = r[8]
+            if folder not in folder_groups:
+                folder_groups[folder] = []
+            folder_groups[folder].append(r)
+        
+        # Select diverse results from different folders
+        diverse_results = []
+        max_per_folder = max(1, req.top_k // len(folder_groups)) if folder_groups else req.top_k
+        
+        for folder, folder_results in folder_groups.items():
+            diverse_results.extend(folder_results[:max_per_folder])
+        
+        # Sort by score again and take top results
+        diverse_results.sort(key=lambda x: x[2], reverse=True)
+        final_results = diverse_results[:req.top_k]
+    else:
+        final_results = results
+    
     # Debug: Print top results with scores
-    print(f"🏆 Top {min(5, len(results))} search results:")
-    for i, r in enumerate(results[:5]):
-        print(f"  {i+1}. {r[1]} - Score: {r[2]:.4f} (Semantic: {r[5]:.4f}, Objects: {r[6]:.4f}, Colors: {r[7]:.4f}) - Objects: {r[3]}")
+    print(f"🏆 Top {min(5, len(final_results))} search results:")
+    for i, r in enumerate(final_results[:5]):
+        print(f"  {i+1}. {r[1]} - Score: {r[2]:.4f} (Semantic: {r[5]:.4f}, Objects: {r[6]:.4f}, Colors: {r[7]:.4f}) - Folder: {r[8]} - Objects: {r[3]}")
     
     return JSONResponse(content=[{
         "file_id": r[0],
@@ -1209,7 +1280,7 @@ def search_images(req: SearchRequest):
         "object_score": round(r[6], 4),
         "color_score": round(r[7], 4),
         "folder": r[8]
-    } for r in results[:req.top_k]])
+    } for r in final_results])
 
 # ---------------------------
 # Advanced Search Features
@@ -2571,8 +2642,8 @@ async def get_uploaded_image(file_id: str):
     )
 
 @app.post("/analyze_storyboard")
-async def analyze_storyboard(storyboard: UploadFile = File(...)):
-    """Analyze storyboard image and find similar images"""
+async def analyze_storyboard(storyboard: UploadFile = File(...), guidelines: str = Form(""), feedback_images: str = Form(""), negative_feedback: str = Form("")):
+    """Analyze storyboard image and find similar images with re-search capability"""
     global image_index
     
     if not image_index:
