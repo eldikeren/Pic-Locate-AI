@@ -924,68 +924,72 @@ def auth_drive():
                     "method": "service_account"
                 }
             except HttpError as e:
-                return {"error": f"Service Account connection failed: {str(e)}"}
+                print(f"❌ Service Account HttpError: {e}")
+                # Continue to OAuth2 fallback
+            except Exception as e:
+                print(f"❌ Service Account Exception: {e}")
+                # Continue to OAuth2 fallback
 
-                # Try OAuth with NEW client secret first
-                new_client_secret_file = "client_secret_132538948811-qim43q7uu42eh2vskk1f4g2n3koa8ong.apps.googleusercontent.com.json"
-                if os.path.exists(new_client_secret_file):
-                    print("🔐 Using NEW OAuth client secret...")
-                    try:
-                        print(f"📁 Loading OAuth file: {new_client_secret_file}")
-                        flow = InstalledAppFlow.from_client_secrets_file(
-                            new_client_secret_file,
-                            scopes=['https://www.googleapis.com/auth/drive.readonly']
-                        )
-                        # Enable offline access for refresh tokens
-                        flow.redirect_uri = 'http://localhost:8080/callback'
-                        print("✅ OAuth flow created successfully")
-                        
-                        print("🌐 Starting OAuth server on port 0...")
-                        creds = flow.run_local_server(port=0)
-                        print("✅ OAuth authentication completed")
-                        
-                        print("🔧 Building Drive service...")
-                        drive_service = build('drive', 'v3', credentials=creds)
-                        print("✅ Drive service built")
-                        
-                        # Test the connection
-                        print("🧪 Testing Drive API connection...")
-                        results = drive_service.files().list(pageSize=1).execute()
-                        print(f"✅ Drive API test successful - found {len(results.get('files', []))} files")
-                        
-                        session_id = str(uuid.uuid4())
-                        save_credentials_to_session(session_id, creds)
-                        print(f"💾 Session saved: {session_id}")
-                        
-                        # Auto-load existing embeddings from Supabase
-                        print("📥 Auto-loading existing embeddings...")
-                        loaded_count = load_existing_embeddings()
-                        if loaded_count > 0:
-                            print(f"✅ Auto-loaded {loaded_count} existing embeddings")
+        # Try OAuth with NEW client secret first
+        new_client_secret_file = "client_secret_132538948811-qim43q7uu42eh2vskk1f4g2n3koa8ong.apps.googleusercontent.com.json"
+        if os.path.exists(new_client_secret_file):
+            print("🔐 Using NEW OAuth client secret...")
+            try:
+                print(f"📁 Loading OAuth file: {new_client_secret_file}")
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    new_client_secret_file,
+                    scopes=['https://www.googleapis.com/auth/drive.readonly']
+                )
+                # Enable offline access for refresh tokens
+                flow.redirect_uri = 'http://localhost:8080/callback'
+                print("✅ OAuth flow created successfully")
+                
+                print("🌐 Starting OAuth server on port 0...")
+                creds = flow.run_local_server(port=0)
+                print("✅ OAuth authentication completed")
+                
+                print("🔧 Building Drive service...")
+                drive_service = build('drive', 'v3', credentials=creds)
+                print("✅ Drive service built")
+                
+                # Test the connection
+                print("🧪 Testing Drive API connection...")
+                results = drive_service.files().list(pageSize=1).execute()
+                print(f"✅ Drive API test successful - found {len(results.get('files', []))} files")
+                
+                session_id = str(uuid.uuid4())
+                save_credentials_to_session(session_id, creds)
+                print(f"💾 Session saved: {session_id}")
+                
+                # Auto-load existing embeddings from Supabase
+                print("📥 Auto-loading existing embeddings...")
+                loaded_count = load_existing_embeddings()
+                if loaded_count > 0:
+                    print(f"✅ Auto-loaded {loaded_count} existing embeddings")
 
-                        return {
-                            "status": "authenticated",
-                            "message": "Successfully connected to Google Drive via NEW OAuth",
-                            "session_id": session_id,
-                            "method": "oauth_new",
-                            "debug": {
-                                "oauth_file": new_client_secret_file,
-                                "files_found": len(results.get('files', [])),
-                                "session_id": session_id
-                            }
-                        }
-                    except Exception as e:
-                        print(f"❌ NEW OAuth error: {str(e)}")
-                        import traceback
-                        print(f"📋 Full traceback: {traceback.format_exc()}")
-                        return {
-                            "error": f"NEW OAuth authentication failed: {str(e)}",
-                            "debug": {
-                                "oauth_file": new_client_secret_file,
-                                "error_type": type(e).__name__,
-                                "traceback": traceback.format_exc()
-                            }
-                        }
+                return {
+                    "status": "authenticated",
+                    "message": "Successfully connected to Google Drive via NEW OAuth",
+                    "session_id": session_id,
+                    "method": "oauth_new",
+                    "debug": {
+                        "oauth_file": new_client_secret_file,
+                        "files_found": len(results.get('files', [])),
+                        "session_id": session_id
+                    }
+                }
+            except Exception as e:
+                print(f"❌ NEW OAuth error: {str(e)}")
+                import traceback
+                print(f"📋 Full traceback: {traceback.format_exc()}")
+                return {
+                    "error": f"NEW OAuth authentication failed: {str(e)}",
+                    "debug": {
+                        "oauth_file": new_client_secret_file,
+                        "error_type": type(e).__name__,
+                        "traceback": traceback.format_exc()
+                    }
+                }
 
         # Fallback to old client secret
         old_client_secret_file = "client_secret_1012576941399-515ln173s773sbrrpn3gtmek0d5vc0u5.apps.googleusercontent.com.json"
