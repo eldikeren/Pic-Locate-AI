@@ -1110,6 +1110,7 @@ def search_images(req: SearchRequest):
     
     # Translate Hebrew query to English for better CLIP understanding
     translated_query = translate_hebrew_query(req.query)
+    print(f"🔄 Translated query: '{req.query}' -> '{translated_query}'")
     
     # Encode text query with CLIP
     text_inputs = clip_processor(text=[translated_query], return_tensors="pt", padding=True)
@@ -1123,11 +1124,20 @@ def search_images(req: SearchRequest):
         # Semantic similarity score
         sim = (text_emb.cpu() @ data['embedding'].T).item()
         
-        # Object filter score
+        # Object filter score - enhanced for room type detection
         if req.required_objects:
             obj_score = len(set(data['objects']) & set(req.required_objects)) / max(1, len(req.required_objects))
         else:
-            obj_score = 1.0
+            # Check if query is a room type and boost object detection
+            room_boost = 0
+            if any(room_term in req.query.lower() for room_term in ['kitchen', 'מטבח', 'bedroom', 'חדר שינה', 'bathroom', 'חדר רחצה']):
+                # Boost score for kitchen-related objects when searching for kitchen
+                if 'kitchen' in translated_query.lower() or 'מטבח' in req.query:
+                    kitchen_objects = ['sink', 'refrigerator', 'oven', 'stove', 'microwave', 'dishwasher', 'knife', 'bowl', 'cup', 'bottle', 'wine glass', 'dining table']
+                    kitchen_matches = len(set(data['objects']) & set(kitchen_objects))
+                    room_boost = min(0.5, kitchen_matches * 0.1)  # Boost up to 0.5
+                # Add similar logic for other room types
+            obj_score = 1.0 + room_boost
         
         # Color filter score
         if req.required_colors:
@@ -1135,13 +1145,24 @@ def search_images(req: SearchRequest):
         else:
             col_score = 1.0
         
-        # Combined score using improved algorithm
-        final_score = calculate_combined_score(sim, obj_score, col_score)
+        # Combined score using improved algorithm with dynamic weights
+        # For room type searches, give more weight to object detection
+        if any(room_term in req.query.lower() for room_term in ['kitchen', 'מטבח', 'bedroom', 'חדר שינה', 'bathroom', 'חדר רחצה']):
+            weights = {"semantic": 0.4, "object": 0.5, "color": 0.1}  # More weight to objects for room detection
+        else:
+            weights = {"semantic": 0.6, "object": 0.2, "color": 0.2}  # Default weights
+        
+        final_score = calculate_combined_score(sim, obj_score, col_score, weights)
         
         results.append((fid, data['name'], final_score, data['objects'], data['colors'], sim, obj_score, col_score, data.get('folder', 'Root')))
 
     # Sort by score and return top results
     results.sort(key=lambda x: x[2], reverse=True)
+    
+    # Debug: Print top results with scores
+    print(f"🏆 Top {min(5, len(results))} search results:")
+    for i, r in enumerate(results[:5]):
+        print(f"  {i+1}. {r[1]} - Score: {r[2]:.4f} (Semantic: {r[5]:.4f}, Objects: {r[6]:.4f}, Colors: {r[7]:.4f}) - Objects: {r[3]}")
     
     return JSONResponse(content=[{
         "file_id": r[0],
