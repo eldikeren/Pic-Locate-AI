@@ -1878,12 +1878,21 @@ async def export_pdf(request: dict):
         # Add company logo
         try:
             logo_data = create_company_logo()
-            logo_buffer = io.BytesIO(logo_data)
-            logo = RLImage(logo_buffer, width=3*inch, height=0.9*inch)
-            story.append(logo)
-            story.append(Spacer(1, 20))
+            if logo_data and len(logo_data) > 0:
+                logo_buffer = io.BytesIO(logo_data)
+                logo = RLImage(logo_buffer, width=3*inch, height=0.9*inch)
+                story.append(logo)
+                story.append(Spacer(1, 20))
+                print("✅ Logo added to PDF successfully")
+            else:
+                print("❌ Logo data is empty, using text fallback")
+                title = Paragraph("Idan Locations", styles['Title'])
+                story.append(title)
+                story.append(Spacer(1, 12))
         except Exception as e:
-            print(f"Error adding logo to PDF: {e}")
+            print(f"❌ Error adding logo to PDF: {e}")
+            import traceback
+            traceback.print_exc()
             # Add text title as fallback
             title = Paragraph("Idan Locations", styles['Title'])
             story.append(title)
@@ -2009,23 +2018,6 @@ async def export_word(request: dict):
                 content={"error": "No images selected for export"}
             )
         
-        # Get selected images data for AI proposal
-        selected_images = []
-        for file_id, name in zip(file_ids, file_names):
-            if file_id in image_index:
-                img_data = image_index[file_id]
-                selected_images.append({
-                    'name': name,
-                    'objects': img_data['objects'],
-                    'colors': img_data['colors'],
-                    'folder': img_data.get('folder', 'Root')
-                })
-        
-        # Generate AI proposal if requested
-        proposal_text = ""
-        if include_proposal and selected_images:
-            proposal_text = generate_ai_proposal(selected_images)
-        
         # Create Word document
         doc = Document()
         
@@ -2074,19 +2066,6 @@ async def export_word(request: dict):
         intro_paragraph = doc.add_paragraph(hebrew_intro)
         intro_paragraph.alignment = 2  # Right alignment for Hebrew
         doc.add_paragraph()  # Add spacing
-        
-        # Add subtitle
-        subtitle = doc.add_heading('תמונות נבחרות', level=1)
-        
-        # Add AI proposal if available
-        if proposal_text:
-            doc.add_heading('הצעה מבוססת AI', level=1)
-            
-            # Split proposal into paragraphs
-            proposal_paragraphs = proposal_text.split('\n\n')
-            for para in proposal_paragraphs:
-                if para.strip():
-                    doc.add_paragraph(para.strip())
         
         # Add images section
         doc.add_heading('תמונות נבחרות', level=1)
@@ -2152,23 +2131,6 @@ async def export_ppt(request: dict):
                 content={"error": "No images selected for export"}
             )
         
-        # Get selected images data for AI proposal
-        selected_images = []
-        for file_id, name in zip(file_ids, file_names):
-            if file_id in image_index:
-                img_data = image_index[file_id]
-                selected_images.append({
-                    'name': name,
-                    'objects': img_data['objects'],
-                    'colors': img_data['colors'],
-                    'folder': img_data.get('folder', 'Root')
-                })
-        
-        # Generate AI proposal if requested
-        proposal_text = ""
-        if include_proposal and selected_images:
-            proposal_text = generate_ai_proposal(selected_images)
-        
         # Create PowerPoint presentation
         prs = Presentation()
         
@@ -2181,19 +2143,25 @@ async def export_ppt(request: dict):
         # Add company logo to title slide
         try:
             logo_data = create_company_logo()
-            logo_buffer = io.BytesIO(logo_data)
-            # Save logo temporarily
-            temp_logo_path = "temp_logo.png"
-            with open(temp_logo_path, 'wb') as f:
-                f.write(logo_data)
-            
-            # Add logo to slide (positioned at top)
-            slide.shapes.add_picture(temp_logo_path, Inches(1), Inches(0.5), Inches(8), Inches(2.4))
-            
-            # Clean up temp file
-            os.remove(temp_logo_path)
+            if logo_data and len(logo_data) > 0:
+                # Save logo temporarily
+                temp_logo_path = "temp_logo.png"
+                with open(temp_logo_path, 'wb') as f:
+                    f.write(logo_data)
+                
+                # Add logo to slide (positioned at top)
+                slide.shapes.add_picture(temp_logo_path, Inches(1), Inches(0.5), Inches(8), Inches(2.4))
+                
+                # Clean up temp file
+                if os.path.exists(temp_logo_path):
+                    os.remove(temp_logo_path)
+                print("✅ Logo added to PowerPoint successfully")
+            else:
+                print("❌ Logo data is empty")
         except Exception as e:
-            print(f"Error adding logo to PowerPoint: {e}")
+            print(f"❌ Error adding logo to PowerPoint: {e}")
+            import traceback
+            traceback.print_exc()
         
         title.text = "הצעת לוקיישנים לצילומים"
         subtitle.text = "Idan Locations"
@@ -2233,33 +2201,7 @@ async def export_ppt(request: dict):
         
         overview_content.text = hebrew_overview
         
-        # AI proposal slides if available
-        if proposal_text:
-            proposal_slide_layout = prs.slide_layouts[1]
-            slide = prs.slides.add_slide(proposal_slide_layout)
-            title = slide.shapes.title
-            content = slide.placeholders[1]
-            
-            title.text = "הצעה מבוססת AI"
-            
-            # Split proposal into slides
-            proposal_paragraphs = proposal_text.split('\n\n')
-            current_slide_text = ""
-            
-            for para in proposal_paragraphs:
-                if para.strip():
-                    if len(current_slide_text + para) > 1000:  # Limit text per slide
-                        content.text = current_slide_text
-                        slide = prs.slides.add_slide(proposal_slide_layout)
-                        title = slide.shapes.title
-                        content = slide.placeholders[1]
-                        title.text = "Design Proposal (Continued)"
-                        current_slide_text = para.strip() + "\n\n"
-                    else:
-                        current_slide_text += para.strip() + "\n\n"
-            
-            if current_slide_text:
-                content.text = current_slide_text
+        # No AI proposal slides - using only Hebrew text
         
         # Images slides
         for file_id, name in zip(file_ids, file_names):
