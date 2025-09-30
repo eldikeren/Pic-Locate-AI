@@ -1023,13 +1023,12 @@ def index_drive():
     image_index = {}  # Reset index
     
     try:
-        # Start from the shared folder instead of root
-        shared_folder_id = "11kSHWn47cQqeRhtlVQ-4Uask7jr2fqjW"
-        print(f"🎯 Starting indexing from shared folder: {shared_folder_id}")
-        print(f"🔗 Folder URL: https://drive.google.com/drive/folders/{shared_folder_id}")
+        # Start from root to crawl ALL folders and subfolders
+        print(f"🎯 Starting indexing from root folder to crawl ALL folders")
+        print(f"🔗 This will index images from all accessible folders in your Google Drive")
         print(f"📊 Indexing ALL images - NO LIMIT!")
         print(f"🔍 This is MANUAL indexing - not automatic on connection")
-        crawl_drive_images(drive_service, folder_id=shared_folder_id, folder_path="תיקיית ה בתים", max_images=999999)
+        crawl_drive_images(drive_service, folder_id='root', folder_path='Root', max_images=999999)
         return {
             "status": "Drive indexed successfully", 
             "total_images": len(image_index),
@@ -1782,9 +1781,21 @@ def health_check():
 # ---------------------------
 @app.get("/image/{file_id}")
 async def get_image(file_id: str):
-    """Serve image from Google Drive with improved error handling"""
+    """Serve image from Google Drive with improved error handling and auto re-authentication"""
+    global drive_service
+    
+    # Check if drive_service is available, if not try to re-authenticate
     if not drive_service:
-        raise HTTPException(status_code=401, detail="Not authenticated with Google Drive")
+        print("🔄 Drive service not available, attempting to re-authenticate...")
+        try:
+            auth_result = auth_drive()
+            if auth_result.get("status") == "authenticated":
+                print("✅ Successfully re-authenticated with Google Drive")
+            else:
+                raise HTTPException(status_code=401, detail="Failed to re-authenticate with Google Drive")
+        except Exception as e:
+            print(f"❌ Re-authentication failed: {e}")
+            raise HTTPException(status_code=401, detail="Not authenticated with Google Drive and re-authentication failed")
     
     try:
         print(f"🖼️ Loading image: {file_id}")
