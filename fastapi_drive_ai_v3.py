@@ -1,7 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -79,9 +77,6 @@ ROOM_KEYWORDS = {
 # App & Globals
 # ---------------------------
 app = FastAPI(title="Google Drive AI Search v3 (with YOLOv8)")
-
-# Mount static files
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
 # Add CORS middleware
 app.add_middleware(
@@ -3049,16 +3044,30 @@ async def analyze_storyboard(storyboard: UploadFile = File(...), guidelines: str
 
 @app.get("/")
 def root():
-    """Serve the main HTML interface"""
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content)
-    except FileNotFoundError:
-        return {
-            "error": "index.html not found",
-            "message": "Please ensure index.html is in the project root directory"
+    """API root endpoint - returns available endpoints"""
+    return {
+        "message": "Google Drive AI Search v3 with YOLOv8 running",
+        "frontend": "Access the UI at http://localhost:4000/",
+        "endpoints": {
+            "auth": "/auth - Authenticate with Google Drive",
+            "auth_status": "/auth/status - Check authentication status",
+            "auth_disconnect": "/auth/disconnect - Disconnect from Google Drive",
+            "index": "/index - Index all Drive images",
+            "search": "/search - Search images with AI",
+            "search_with_feedback": "/search_with_feedback - Advanced search with feedback",
+            "parse": "/parse_requirements - Parse storyboard/PDF",
+            "upload": "/upload_images - Upload and index images",
+            "storyboard": "/analyze_storyboard - Analyze storyboard and find similar images",
+            "stats": "/stats - Get indexing statistics",
+            "image": "/image/{file_id} - Get image from Drive",
+            "uploaded": "/uploaded_image/{file_id} - Get uploaded image",
+            "export": "/export_pdf - Export images to PDF",
+            "health": "/health - Health check",
+            "test_supabase": "/test_supabase - Test Supabase connection",
+            "setup_supabase": "/setup_supabase_table - Setup Supabase table",
+            "clear_supabase": "/clear_supabase - Clear Supabase data"
         }
+    }
 
 @app.get("/debug_drive")
 def debug_drive():
