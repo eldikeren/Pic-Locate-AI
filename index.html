@@ -460,6 +460,96 @@
             color: white;
         }
         
+        .search-actions {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .collection-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .collection-count {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .collection-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .collection-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .collection-image {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .collection-image img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .collection-image .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .collection-image .remove-btn:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
         .loading {
             text-align: center;
             padding: 40px;
@@ -549,11 +639,39 @@
                     <input type="text" id="required-colors" placeholder="e.g., purple, blue, white" />
                 </div>
                 
-                <button id="search-btn" class="btn" onclick="searchImages()" disabled>
-                    Search Images
-                </button>
+                <div class="input-group">
+                    <label for="search-guidelines">Special Guidelines (optional)</label>
+                    <textarea id="search-guidelines" placeholder="e.g., focus on modern design, avoid cluttered spaces, prefer natural lighting" rows="3"></textarea>
+                </div>
+                
+                <div class="search-actions">
+                    <button id="search-btn" class="btn" onclick="searchImages()" disabled>
+                        Search Images
+                    </button>
+                    <button id="reresearch-btn" class="btn secondary" onclick="reresearchWithFeedback()" disabled>
+                        🔄 Re-search with Feedback
+                    </button>
+                </div>
                 
                 <div id="search-results"></div>
+                
+                <!-- Image Collection Section -->
+                <div id="collection-section" class="collection-section" style="display: none;">
+                    <h3>📚 Image Collection</h3>
+                    <div id="collection-count" class="collection-count">0 images collected</div>
+                    <div class="collection-actions">
+                        <button id="add-to-collection-btn" class="btn" onclick="addToCollection()" disabled>
+                            ➕ Add Selected to Collection
+                        </button>
+                        <button id="view-collection-btn" class="btn secondary" onclick="viewCollection()">
+                            👁️ View Collection
+                        </button>
+                        <button id="clear-collection-btn" class="btn danger" onclick="clearCollection()">
+                            🗑️ Clear Collection
+                        </button>
+                    </div>
+                    <div id="collection-images" class="collection-images"></div>
+                </div>
                 
                 <!-- Export Section -->
                 <div id="export-section" class="export-section" style="display: none;">
@@ -873,6 +991,7 @@
             const query = document.getElementById('search-query').value;
             const objects = document.getElementById('required-objects').value.split(',').map(s => s.trim()).filter(s => s);
             const colors = document.getElementById('required-colors').value.split(',').map(s => s.trim()).filter(s => s);
+            const guidelines = document.getElementById('search-guidelines').value;
             
             if (!query.trim()) {
                 alert('Please enter a search query');
@@ -886,7 +1005,9 @@
                     query: query,
                     required_objects: objects,
                     required_colors: colors.map(color => getColorRGB(color)).filter(c => c),
-                    top_k: 10
+                    top_k: 10,
+                    special_guidelines: guidelines,
+                    search_session_id: generateSessionId()
                 };
                 
                 const response = await fetch(`${API_BASE}/search`, {
@@ -1835,6 +1956,187 @@
                 }
             }
             return null;
+        }
+        
+        // Advanced Search Features
+        
+        let currentSearchSessionId = null;
+        let feedbackImages = [];
+        let negativeFeedbackImages = [];
+        
+        function generateSessionId() {
+            if (!currentSearchSessionId) {
+                currentSearchSessionId = 'search_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            return currentSearchSessionId;
+        }
+        
+        async function reresearchWithFeedback() {
+            const query = document.getElementById('search-query').value;
+            const guidelines = document.getElementById('search-guidelines').value;
+            
+            if (!query.trim()) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            try {
+                document.getElementById('search-results').innerHTML = '<div class="loading"><div class="spinner"></div>Re-searching with feedback...</div>';
+                
+                const searchData = {
+                    query: query,
+                    guidelines: guidelines,
+                    feedback_images: feedbackImages,
+                    negative_feedback: negativeFeedbackImages,
+                    search_session_id: currentSearchSessionId || generateSessionId(),
+                    top_k: 10
+                };
+                
+                const response = await fetch(`${API_BASE}/search_with_feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(searchData)
+                });
+                
+                const results = await response.json();
+                
+                if (results.error) {
+                    document.getElementById('search-results').innerHTML = `<div class="status error">❌ ${results.error}</div>`;
+                    return;
+                }
+                
+                displaySearchResults(results);
+                document.getElementById('collection-section').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Re-search error:', error);
+                document.getElementById('search-results').innerHTML = `<div class="status error">❌ Re-search failed: ${error.message}</div>`;
+            }
+        }
+        
+        async function addToCollection() {
+            const selectedResults = getSelectedResults();
+            if (selectedResults.length === 0) {
+                alert('Please select images to add to collection');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/add_to_collection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_ids: selectedResults.map(r => r.file_id),
+                        file_names: selectedResults.map(r => r.name),
+                        search_session_id: currentSearchSessionId || generateSessionId()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(`✅ Added ${selectedResults.length} images to collection`);
+                    updateCollectionDisplay();
+                } else {
+                    alert(`❌ Failed to add images: ${result.error}`);
+                }
+                
+            } catch (error) {
+                console.error('Add to collection error:', error);
+                alert(`❌ Failed to add images: ${error.message}`);
+            }
+        }
+        
+        async function viewCollection() {
+            try {
+                const sessionId = currentSearchSessionId || generateSessionId();
+                const response = await fetch(`${API_BASE}/get_collection/${sessionId}`);
+                const result = await response.json();
+                
+                if (result.images && result.images.length > 0) {
+                    displayCollectionImages(result.images);
+                } else {
+                    document.getElementById('collection-images').innerHTML = '<p>No images in collection yet.</p>';
+                }
+                
+            } catch (error) {
+                console.error('View collection error:', error);
+                alert(`❌ Failed to load collection: ${error.message}`);
+            }
+        }
+        
+        async function clearCollection() {
+            if (!confirm('Are you sure you want to clear the collection?')) {
+                return;
+            }
+            
+            try {
+                const sessionId = currentSearchSessionId || generateSessionId();
+                const response = await fetch(`${API_BASE}/clear_collection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('✅ Collection cleared');
+                    updateCollectionDisplay();
+                    document.getElementById('collection-images').innerHTML = '';
+                } else {
+                    alert(`❌ Failed to clear collection: ${result.error}`);
+                }
+                
+            } catch (error) {
+                console.error('Clear collection error:', error);
+                alert(`❌ Failed to clear collection: ${error.message}`);
+            }
+        }
+        
+        function updateCollectionDisplay() {
+            const sessionId = currentSearchSessionId || generateSessionId();
+            fetch(`${API_BASE}/get_collection/${sessionId}`)
+                .then(response => response.json())
+                .then(result => {
+                    document.getElementById('collection-count').textContent = `${result.count} images collected`;
+                })
+                .catch(error => console.error('Update collection display error:', error));
+        }
+        
+        function displayCollectionImages(images) {
+            const container = document.getElementById('collection-images');
+            container.innerHTML = images.map(img => `
+                <div class="collection-image">
+                    <img src="${API_BASE}/image/${img.file_id}" alt="${img.file_name}" />
+                    <button class="remove-btn" onclick="removeFromCollection('${img.file_id}')">×</button>
+                    <div class="image-info">
+                        <strong>${img.file_name}</strong>
+                        <div class="objects">${img.objects.join(', ')}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function removeFromCollection(fileId) {
+            // This would require a backend endpoint to remove individual images
+            // For now, we'll just refresh the collection display
+            viewCollection();
+        }
+        
+        // Add feedback functions
+        function addPositiveFeedback(fileId) {
+            if (!feedbackImages.includes(fileId)) {
+                feedbackImages.push(fileId);
+                console.log('Added positive feedback:', fileId);
+            }
+        }
+        
+        function addNegativeFeedback(fileId) {
+            if (!negativeFeedbackImages.includes(fileId)) {
+                negativeFeedbackImages.push(fileId);
+                console.log('Added negative feedback:', fileId);
+            }
         }
         
         // Initialize the page
