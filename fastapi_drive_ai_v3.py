@@ -1899,8 +1899,8 @@ The proposed design focuses on creating a cohesive and functional space that mee
 Please review this proposal and let us know if you'd like to proceed with any modifications."""
 
 @app.post("/parse_requirements")
-async def parse_requirements(file: UploadFile = File(...)):
-    """Parse storyboard/PDF to extract design requirements"""
+async def parse_requirements(file: UploadFile = File(...), guidelines: str = Form(""), feedback_images: str = Form(""), negative_feedback: str = Form("")):
+    """Parse storyboard/PDF to extract design requirements with re-search capability"""
     try:
         print(f"📄 Starting PDF parsing for file: {file.filename}")
         
@@ -2566,8 +2566,8 @@ async def export_ppt(request: dict):
         )
 
 @app.post("/upload_images")
-async def upload_images(images: List[UploadFile] = File(...)):
-    """Upload and index multiple images"""
+async def upload_images(images: List[UploadFile] = File(...), guidelines: str = Form(""), feedback_images: str = Form(""), negative_feedback: str = Form("")):
+    """Upload and index multiple images with re-search capability"""
     global image_index
     
     if not images:

@@ -734,9 +734,20 @@
                     <input type="file" id="storyboard-upload" accept="image/*" />
                     <small>Upload a storyboard or reference image to find similar images in your collection</small>
                 </div>
-                <button id="analyze-storyboard-btn" class="btn" onclick="analyzeStoryboard()" disabled>
-                    Analyze Storyboard & Find Similar Images
-                </button>
+                
+                <div class="input-group">
+                    <label for="storyboard-guidelines">Special Guidelines (optional)</label>
+                    <textarea id="storyboard-guidelines" placeholder="e.g., focus on modern design, avoid cluttered spaces, prefer natural lighting" rows="2"></textarea>
+                </div>
+                
+                <div class="search-actions">
+                    <button id="analyze-storyboard-btn" class="btn" onclick="analyzeStoryboard()" disabled>
+                        Analyze Storyboard & Find Similar Images
+                    </button>
+                    <button id="reresearch-storyboard-btn" class="btn secondary" onclick="reresearchStoryboard()" disabled>
+                        🔄 Re-search with Feedback
+                    </button>
+                </div>
                 <div id="storyboard-results"></div>
             </div>
         </div>
@@ -1637,6 +1648,7 @@
                 fileInput.value = '';
                 document.getElementById('analyze-storyboard-btn').disabled = true;
                 document.getElementById('analyze-storyboard-btn').textContent = 'Analyze Storyboard & Find Similar Images';
+                document.getElementById('reresearch-storyboard-btn').disabled = false;
                 
             } catch (error) {
                 console.error('Storyboard analysis failed:', error);
@@ -2139,6 +2151,47 @@
             if (!negativeFeedbackImages.includes(fileId)) {
                 negativeFeedbackImages.push(fileId);
                 console.log('Added negative feedback:', fileId);
+            }
+        }
+        
+        // Storyboard re-search function
+        async function reresearchStoryboard() {
+            const fileInput = document.getElementById('storyboard-upload');
+            const guidelines = document.getElementById('storyboard-guidelines').value;
+            
+            if (!fileInput.files[0]) {
+                alert('Please upload a storyboard image first');
+                return;
+            }
+            
+            try {
+                document.getElementById('storyboard-results').innerHTML = '<div class="loading"><div class="spinner"></div>Re-searching with feedback...</div>';
+                
+                const formData = new FormData();
+                formData.append('storyboard', fileInput.files[0]);
+                formData.append('guidelines', guidelines);
+                formData.append('feedback_images', JSON.stringify(feedbackImages));
+                formData.append('negative_feedback', JSON.stringify(negativeFeedbackImages));
+                
+                const response = await fetch(`${API_BASE}/analyze_storyboard`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('storyboard-results').innerHTML = `<div class="status error">❌ ${result.error}</div>`;
+                    return;
+                }
+                
+                // Display results (reuse existing storyboard display logic)
+                displayStoryboardResults(result);
+                document.getElementById('reresearch-storyboard-btn').disabled = false;
+                
+            } catch (error) {
+                console.error('Storyboard re-search error:', error);
+                document.getElementById('storyboard-results').innerHTML = `<div class="status error">❌ Re-search failed: ${error.message}</div>`;
             }
         }
         
