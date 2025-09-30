@@ -1086,8 +1086,15 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
     print(f"🔍 Crawling folder: {folder_path} (ID: {folder_id})")
     
     # Get images in current folder
-    query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
-    results = service.files().list(q=query, fields="files(id,name,parents)").execute()
+    if folder_id == 'root':
+        # For root folder, get ALL images in the drive
+        query = "mimeType contains 'image/' and trashed=false"
+        print(f"   🔍 Searching for ALL images in Google Drive...")
+    else:
+        # For subfolders, get images in this specific folder
+        query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
+    
+    results = service.files().list(q=query, fields="files(id,name,parents)", pageSize=1000).execute()
     files = results.get('files', [])
     
     print(f"   📸 Found {len(files)} images in {folder_path}")
@@ -1105,6 +1112,22 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
         if is_image_indexed(file_id):
             print(f"   ⏭️ Skipping {file_name} - already indexed")
             continue
+        
+        # Determine folder path for this image
+        if folder_id == 'root':
+            # For root query, try to get the actual folder path
+            parents = file.get('parents', [])
+            if parents:
+                # Get the parent folder name
+                try:
+                    parent_folder = service.files().get(fileId=parents[0], fields="name").execute()
+                    folder_path = parent_folder.get('name', 'Unknown Folder')
+                except:
+                    folder_path = 'Root'
+            else:
+                folder_path = 'Root'
+        else:
+            folder_path = folder_path
         
         try:
             # Download image with SSL error handling
