@@ -885,11 +885,18 @@ def auth_drive():
                 print("🔗 Testing Google Drive connection...")
                 import concurrent.futures
                 
-                # Quick connection test with timeout
+                # Quick connection test with timeout - check if files are accessible
                 def test_connection():
                     try:
                         if drive_service:
-                            return drive_service.files().list(pageSize=1).execute()
+                            results = drive_service.files().list(pageSize=1).execute()
+                            files = results.get('files', [])
+                            print(f"🔍 Service account can access {len(files)} files")
+                            # If no files accessible, this is a problem
+                            if len(files) == 0:
+                                print("⚠️ Service account has no file access - will try OAuth2")
+                                return None
+                            return results
                         return None
                     except Exception as e:
                         print(f"❌ Connection test failed: {e}")
@@ -901,7 +908,7 @@ def auth_drive():
                     try:
                         results = future.result(timeout=10)  # 10 second timeout
                         if results is None:
-                            raise Exception("Connection test returned None")
+                            raise Exception("Service account has no file access - trying OAuth2")
                     except concurrent.futures.TimeoutError:
                         print("⏰ Connection test timed out, but service account should still work")
                         results = {"files": []}  # Assume connection works
@@ -3052,6 +3059,35 @@ def root():
             "error": "index.html not found",
             "message": "Please ensure index.html is in the project root directory"
         }
+
+@app.get("/debug_drive")
+def debug_drive():
+    """Debug endpoint to see what files the service account can access"""
+    if not drive_service:
+        return {"error": "Not authenticated"}
+    
+    try:
+        # Test basic file listing
+        results = drive_service.files().list(pageSize=10, fields="files(id,name,mimeType)").execute()
+        files = results.get('files', [])
+        
+        # Test image-specific query
+        image_results = drive_service.files().list(
+            q="mimeType contains 'image/' and trashed=false", 
+            pageSize=10, 
+            fields="files(id,name,mimeType)"
+        ).execute()
+        image_files = image_results.get('files', [])
+        
+        return {
+            "total_files_accessible": len(files),
+            "sample_files": files[:3],
+            "total_images_accessible": len(image_files),
+            "sample_images": image_files[:3],
+            "query_used": "mimeType contains 'image/' and trashed=false"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/api")
 def api_info():
