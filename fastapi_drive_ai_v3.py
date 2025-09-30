@@ -116,6 +116,21 @@ _connection_cache = {
     "cached_session": None
 }
 
+def refresh_credentials_if_needed(creds):
+    """Refresh credentials if they are expired or about to expire"""
+    if not creds or not creds.expired:
+        return creds
+    
+    try:
+        print("🔄 Refreshing expired credentials...")
+        from google.auth.transport.requests import Request
+        creds.refresh(Request())
+        print("✅ Credentials refreshed successfully")
+        return creds
+    except Exception as e:
+        print(f"❌ Failed to refresh credentials: {e}")
+        return None
+
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 # OpenAI API Configuration
@@ -134,18 +149,25 @@ def save_credentials_to_session(session_id: str, credentials: Credentials):
     }
 
 def load_credentials_from_session(session_id: str) -> Credentials:
-    """Load credentials from session storage"""
+    """Load credentials from session storage and refresh if needed"""
     if session_id not in auth_sessions:
         return None
     
     session = auth_sessions[session_id]
+    creds = session['credentials']
     
-    # Check if session is expired
-    if time.time() > session['expires_at']:
+    # Try to refresh credentials if they're expired
+    refreshed_creds = refresh_credentials_if_needed(creds)
+    if refreshed_creds:
+        # Update the session with refreshed credentials
+        auth_sessions[session_id]['credentials'] = refreshed_creds
+        auth_sessions[session_id]['timestamp'] = time.time()
+        auth_sessions[session_id]['expires_at'] = time.time() + 3600  # 1 hour
+        return refreshed_creds
+    else:
+        # If refresh failed, clear the session
         del auth_sessions[session_id]
         return None
-    
-    return session['credentials']
 
 def clear_session(session_id: str):
     """Clear session data"""
@@ -565,6 +587,8 @@ def auth_drive():
                             new_client_secret_file,
                             scopes=['https://www.googleapis.com/auth/drive.readonly']
                         )
+                        # Enable offline access for refresh tokens
+                        flow.redirect_uri = 'http://localhost:8080/callback'
                         print("✅ OAuth flow created successfully")
                         
                         print("🌐 Starting OAuth server on port 0...")

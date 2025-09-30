@@ -686,6 +686,7 @@
                         `<div class="status error">❌ Not connected to Google Drive</div>`;
                     document.getElementById('auth-btn').textContent = 'Connect to Google Drive';
                     document.getElementById('auth-btn').onclick = authenticate;
+                    document.getElementById('auth-btn').disabled = false;
                 }
             } catch (error) {
                 console.error('Auth status check failed:', error);
@@ -806,6 +807,7 @@
                     document.getElementById('auth-status').className = 'status error';
                     document.getElementById('auth-btn').textContent = 'Connect to Google Drive';
                     document.getElementById('auth-btn').onclick = authenticate;
+                    document.getElementById('auth-btn').disabled = false;
                     document.getElementById('index-btn').disabled = true;
                     document.getElementById('search-btn').disabled = true;
                 } else {
