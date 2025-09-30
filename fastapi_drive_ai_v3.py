@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -78,6 +79,9 @@ ROOM_KEYWORDS = {
 # App & Globals
 # ---------------------------
 app = FastAPI(title="Google Drive AI Search v3 (with YOLOv8)")
+
+# Mount static files
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
 # Add CORS middleware
 app.add_middleware(
@@ -1095,10 +1099,21 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
         # For subfolders, get images in this specific folder
         query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
     
-    results = service.files().list(q=query, fields="files(id,name,parents)", pageSize=1000).execute()
-    files = results.get('files', [])
-    
-    print(f"   📸 Found {len(files)} images in {folder_path}")
+    print(f"   🔍 Executing query: {query}")
+    try:
+        results = service.files().list(q=query, fields="files(id,name,parents)", pageSize=1000).execute()
+        files = results.get('files', [])
+        print(f"   📸 Found {len(files)} images in {folder_path}")
+        
+        # Debug: Show first few file names if any found
+        if files:
+            print(f"   📋 Sample files: {[f['name'] for f in files[:3]]}")
+        else:
+            print(f"   ⚠️ No files found with query: {query}")
+            
+    except Exception as e:
+        print(f"   ❌ Error executing query: {e}")
+        files = []
 
     for file in files:
         # Stop if we've reached the limit
