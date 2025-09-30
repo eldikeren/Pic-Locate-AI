@@ -1891,16 +1891,36 @@ async def export_pdf(request: dict):
         
         # Add Hebrew introduction
         hebrew_intro = """
-        אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
-        הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות.
+        הצעת לוקיישנים לצילומים
+        
+        תקציר מנהלים:
+        שמחים להציג בפניכם מבחר לוקיישנים שנבחרו במיוחד בהתאם לדרישות ההפקה שלכם. ההצעה נבנתה מתוך מטרה לאפשר לכם מבט ממוקד, נגיש וברור על מקומות פוטנציאליים לצילומים.
+        
+        חזון וקונספט:
+        ב־Idan Locations אנו מתמחים בהתאמת לוקיישנים מדויקים להפקות קולנוע, טלוויזיה ופרסומות. החזון שלנו הוא לחבר בין צרכי ההפקה שלכם לבין המרחב המתאים ביותר מבחינה ויזואלית, לוגיסטית והפקתית.
+        
+        סקירת לוקיישנים:
+        התמונות שלפניכם מציגות אתרים רלוונטיים שנבחרו בקפידה, מתוך שיקולים של נראות, נגישות ותנאי הפקה. כל מיקום נותן מענה לאופי הסצנות והאווירה שברצונכם ליצור.
+        
+        יתרונות מרכזיים:
+        • מגוון סגנונות ונופים במקום אחד
+        • נגישות גבוהה לצוותי צילום והפקה
+        • אפשרויות גמישות בהתאם לדרישות ההפקה
+        • ניסיון וליווי מקצועי לאורך כל התהליך
+        
+        שלבים הבאים:
+        נשמח לקיים פגישת המשך לבחירת הלוקיישן המתאים ביותר ולהתחלת תהליך התיאום בשטח.
+        
+        תודה על שיתוף הפעולה,
+        Idan Locations
         """
         
         # Create custom style for Hebrew text
         hebrew_style = ParagraphStyle(
             'HebrewStyle',
             parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=20,
+            fontSize=11,
+            spaceAfter=15,
             alignment=TA_RIGHT,  # Right-to-left for Hebrew
             fontName='Helvetica'
         )
@@ -1910,7 +1930,7 @@ async def export_pdf(request: dict):
         story.append(Spacer(1, 20))
         
         # Add section title
-        section_title = Paragraph("Selected Images", styles['Heading1'])
+        section_title = Paragraph("תמונות נבחרות", styles['Heading1'])
         story.append(section_title)
         story.append(Spacer(1, 12))
         
@@ -2027,8 +2047,28 @@ async def export_word(request: dict):
         
         # Add Hebrew introduction
         hebrew_intro = """
-        אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
-        הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות.
+        הצעת לוקיישנים לצילומים
+        
+        תקציר מנהלים:
+        שמחים להציג בפניכם מבחר לוקיישנים שנבחרו במיוחד בהתאם לדרישות ההפקה שלכם. ההצעה נבנתה מתוך מטרה לאפשר לכם מבט ממוקד, נגיש וברור על מקומות פוטנציאליים לצילומים.
+        
+        חזון וקונספט:
+        ב־Idan Locations אנו מתמחים בהתאמת לוקיישנים מדויקים להפקות קולנוע, טלוויזיה ופרסומות. החזון שלנו הוא לחבר בין צרכי ההפקה שלכם לבין המרחב המתאים ביותר מבחינה ויזואלית, לוגיסטית והפקתית.
+        
+        סקירת לוקיישנים:
+        התמונות שלפניכם מציגות אתרים רלוונטיים שנבחרו בקפידה, מתוך שיקולים של נראות, נגישות ותנאי הפקה. כל מיקום נותן מענה לאופי הסצנות והאווירה שברצונכם ליצור.
+        
+        יתרונות מרכזיים:
+        • מגוון סגנונות ונופים במקום אחד
+        • נגישות גבוהה לצוותי צילום והפקה
+        • אפשרויות גמישות בהתאם לדרישות ההפקה
+        • ניסיון וליווי מקצועי לאורך כל התהליך
+        
+        שלבים הבאים:
+        נשמח לקיים פגישת המשך לבחירת הלוקיישן המתאים ביותר ולהתחלת תהליך התיאום בשטח.
+        
+        תודה על שיתוף הפעולה,
+        Idan Locations
         """
         
         intro_paragraph = doc.add_paragraph(hebrew_intro)
@@ -2036,11 +2076,11 @@ async def export_word(request: dict):
         doc.add_paragraph()  # Add spacing
         
         # Add subtitle
-        subtitle = doc.add_heading('AI-Powered Design Proposal', level=1)
+        subtitle = doc.add_heading('תמונות נבחרות', level=1)
         
         # Add AI proposal if available
         if proposal_text:
-            doc.add_heading('AI-Generated Design Proposal', level=1)
+            doc.add_heading('הצעה מבוססת AI', level=1)
             
             # Split proposal into paragraphs
             proposal_paragraphs = proposal_text.split('\n\n')
@@ -2049,7 +2089,7 @@ async def export_word(request: dict):
                     doc.add_paragraph(para.strip())
         
         # Add images section
-        doc.add_heading('Selected Images', level=1)
+        doc.add_heading('תמונות נבחרות', level=1)
         
         # Add images
         for file_id, name in zip(file_ids, file_names):
@@ -2132,27 +2172,66 @@ async def export_ppt(request: dict):
         # Create PowerPoint presentation
         prs = Presentation()
         
-        # Title slide with company branding
+        # Title slide with company branding and logo
         title_slide_layout = prs.slide_layouts[0]
         slide = prs.slides.add_slide(title_slide_layout)
         title = slide.shapes.title
         subtitle = slide.placeholders[1]
         
-        title.text = "Idan Locations"
-        subtitle.text = "AI-Powered Design Proposal"
+        # Add company logo to title slide
+        try:
+            logo_data = create_company_logo()
+            logo_buffer = io.BytesIO(logo_data)
+            # Save logo temporarily
+            temp_logo_path = "temp_logo.png"
+            with open(temp_logo_path, 'wb') as f:
+                f.write(logo_data)
+            
+            # Add logo to slide (positioned at top)
+            slide.shapes.add_picture(temp_logo_path, Inches(1), Inches(0.5), Inches(8), Inches(2.4))
+            
+            # Clean up temp file
+            os.remove(temp_logo_path)
+        except Exception as e:
+            print(f"Error adding logo to PowerPoint: {e}")
         
-        # Add Hebrew introduction slide
-        intro_slide_layout = prs.slide_layouts[1]
-        intro_slide = prs.slides.add_slide(intro_slide_layout)
-        intro_title = intro_slide.shapes.title
-        intro_content = intro_slide.placeholders[1]
+        title.text = "הצעת לוקיישנים לצילומים"
+        subtitle.text = "Idan Locations"
         
-        intro_title.text = "ברוכים הבאים"
-        hebrew_intro = """אנחנו ב־Idan Locations שמחים להציג בפניכם את המיקומים שהותאמו במיוחד לצורכי ההפקה שלכם.
+        # Add executive summary slide
+        summary_slide_layout = prs.slide_layouts[1]
+        summary_slide = prs.slides.add_slide(summary_slide_layout)
+        summary_title = summary_slide.shapes.title
+        summary_content = summary_slide.placeholders[1]
         
-הצילומים שלפניכם נבחרו בקפידה על מנת לשקף בצורה הטובה ביותר את האפשרויות בשטח, ולהקל על תהליך קבלת ההחלטות."""
+        summary_title.text = "תקציר מנהלים"
+        hebrew_summary = """שמחים להציג בפניכם מבחר לוקיישנים שנבחרו במיוחד בהתאם לדרישות ההפקה שלכם. ההצעה נבנתה מתוך מטרה לאפשר לכם מבט ממוקד, נגיש וברור על מקומות פוטנציאליים לצילומים.
+
+חזון וקונספט:
+ב־Idan Locations אנו מתמחים בהתאמת לוקיישנים מדויקים להפקות קולנוע, טלוויזיה ופרסומות. החזון שלנו הוא לחבר בין צרכי ההפקה שלכם לבין המרחב המתאים ביותר מבחינה ויזואלית, לוגיסטית והפקתית."""
         
-        intro_content.text = hebrew_intro
+        summary_content.text = hebrew_summary
+        
+        # Add locations overview slide
+        overview_slide_layout = prs.slide_layouts[1]
+        overview_slide = prs.slides.add_slide(overview_slide_layout)
+        overview_title = overview_slide.shapes.title
+        overview_content = overview_slide.placeholders[1]
+        
+        overview_title.text = "סקירת לוקיישנים ויתרונות"
+        hebrew_overview = """סקירת לוקיישנים:
+התמונות שלפניכם מציגות אתרים רלוונטיים שנבחרו בקפידה, מתוך שיקולים של נראות, נגישות ותנאי הפקה.
+
+יתרונות מרכזיים:
+• מגוון סגנונות ונופים במקום אחד
+• נגישות גבוהה לצוותי צילום והפקה
+• אפשרויות גמישות בהתאם לדרישות ההפקה
+• ניסיון וליווי מקצועי לאורך כל התהליך
+
+שלבים הבאים:
+נשמח לקיים פגישת המשך לבחירת הלוקיישן המתאים ביותר ולהתחלת תהליך התיאום בשטח."""
+        
+        overview_content.text = hebrew_overview
         
         # AI proposal slides if available
         if proposal_text:
@@ -2161,7 +2240,7 @@ async def export_ppt(request: dict):
             title = slide.shapes.title
             content = slide.placeholders[1]
             
-            title.text = "AI-Generated Design Proposal"
+            title.text = "הצעה מבוססת AI"
             
             # Split proposal into slides
             proposal_paragraphs = proposal_text.split('\n\n')
