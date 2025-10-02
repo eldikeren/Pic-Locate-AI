@@ -1049,6 +1049,104 @@ def index_drive():
     except Exception as e:
         return {"error": str(e)}
 
-# Continue in next file due to length...
+# Search endpoints
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    lang: str = "en"
+
+@app.post("/search")
+def search_images(req: SearchRequest):
+    """Search images using V4 database"""
+    try:
+        # Translate Hebrew query to English if needed
+        if req.lang == "he":
+            # Simple Hebrew to English translation
+            hebrew_to_english = {
+                "מטבח": "kitchen",
+                "שולחן": "table", 
+                "שחור": "black",
+                "לבן": "white",
+                "אפור": "gray",
+                "אמבטיה": "bathroom",
+                "סלון": "living room",
+                "חדר שינה": "bedroom"
+            }
+            
+            translated_query = req.query
+            for hebrew, english in hebrew_to_english.items():
+                translated_query = translated_query.replace(hebrew, english)
+        else:
+            translated_query = req.query
+        
+        # Search in image_captions table using vector similarity
+        result = supabase.table("image_captions").select(
+            "image_id, caption_en, caption_he"
+        ).execute()
+        
+        if not result.data:
+            return {"results": [], "total_results": 0}
+        
+        # Simple text matching for now (can be enhanced with vector search)
+        matching_results = []
+        for row in result.data:
+            caption = row.get('caption_en', '').lower()
+            if translated_query.lower() in caption:
+                # Get image details
+                img_result = supabase.table("images").select(
+                    "drive_id, file_name, folder_path, room_type"
+                ).eq("id", row['image_id']).execute()
+                
+                if img_result.data:
+                    img_data = img_result.data[0]
+                    matching_results.append({
+                        "image_id": row['image_id'],
+                        "file_name": img_data.get('file_name', 'Unknown'),
+                        "folder_path": img_data.get('folder_path', ''),
+                        "room_type": img_data.get('room_type', ''),
+                        "caption": row.get('caption_en', ''),
+                        "similarity": 0.8  # Placeholder similarity score
+                    })
+        
+        return {
+            "results": matching_results[:req.top_k],
+            "total_results": len(matching_results),
+            "query": req.query,
+            "translated_query": translated_query
+        }
+        
+    except Exception as e:
+        return {"error": str(e), "results": []}
+
+@app.get("/stats/overview")
+def get_stats():
+    """Get system statistics"""
+    try:
+        # Get counts from each table
+        image_count = supabase.table("images").select("id", count="exact").execute().count
+        object_count = supabase.table("image_objects").select("id", count="exact").execute().count
+        caption_count = supabase.table("image_captions").select("id", count="exact").execute().count
+        
+        # Get room distribution
+        room_result = supabase.table("images").select("room_type").execute()
+        room_distribution = {}
+        for r in room_result.data:
+            room = r.get('room_type', 'unknown')
+            room_distribution[room] = room_distribution.get(room, 0) + 1
+        
+        return {
+            "database_stats": {
+                "total_images": image_count,
+                "total_objects": object_count,
+                "total_captions": caption_count
+            },
+            "distributions": {
+                "rooms": room_distribution
+            }
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 print("✅ PicLocate V4 Production backend initialized")
 
