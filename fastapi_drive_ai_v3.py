@@ -22,6 +22,11 @@ import pytesseract
 import ssl
 import urllib3
 from dotenv import load_dotenv
+
+# Configure SSL context to handle Google Drive SSL issues
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 from supabase import create_client, Client
 
 # Load environment variables from .env file
@@ -120,7 +125,7 @@ async def add_cors_and_error_handling(request: Request, call_next):
 auth_sessions = {}
 
 # Connection cache to avoid repeated authentication
-_connection_cache = {
+_connection_cache: dict = {
     "last_auth_time": None,
     "auth_duration": None,
     "cached_session": None
@@ -141,7 +146,16 @@ def refresh_credentials_if_needed(creds):
         print(f"❌ Failed to refresh credentials: {e}")
         return None
 
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
+
+# Target Google Drive Folder - ONLY access this folder
+TARGET_FOLDER_ID = '11kSHWn47cQqeRhtlVQ-4Uask7jr2fqjW'
+TARGET_FOLDER_NAME = 'Shared Locations Drive'
 
 # OpenAI API Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -542,6 +556,35 @@ def detect_objects_yolo(image):
             objs.append(name.lower())
     return objs
 
+def detect_room_type_from_objects(objects):
+    """Detect room type based on detected objects"""
+    room_indicators = {
+        'kitchen': ['sink', 'refrigerator', 'oven', 'microwave', 'stove', 'dishwasher', 'toaster', 'coffee maker', 'blender', 'cutting board', 'knife', 'plate', 'bowl', 'cup', 'bottle', 'wine glass'],
+        'living_room': ['sofa', 'couch', 'television', 'tv', 'coffee table', 'lamp', 'chair', 'bookshelf', 'fireplace', 'rug', 'carpet', 'pillow', 'cushion'],
+        'bedroom': ['bed', 'pillow', 'blanket', 'dresser', 'wardrobe', 'nightstand', 'lamp', 'mirror', 'closet'],
+        'children_room': ['toy', 'teddy bear', 'doll', 'ball', 'book', 'crayon', 'pencil', 'chair', 'desk', 'bed', 'bunk bed'],
+        'bathroom': ['toilet', 'sink', 'bathtub', 'shower', 'towel', 'mirror', 'toothbrush', 'soap', 'shampoo'],
+        'dining_room': ['dining table', 'chair', 'plate', 'bowl', 'cup', 'wine glass', 'bottle', 'fork', 'knife', 'spoon'],
+        'office': ['desk', 'chair', 'computer', 'laptop', 'monitor', 'keyboard', 'mouse', 'book', 'pen', 'pencil', 'paper', 'printer'],
+        'outdoor': ['tree', 'grass', 'flower', 'plant', 'sky', 'cloud', 'sun', 'mountain', 'beach', 'ocean', 'pool', 'garden']
+    }
+    
+    room_scores = {}
+    for room_type, indicators in room_indicators.items():
+        score = 0
+        for obj in objects:
+            if any(indicator in obj.lower() for indicator in indicators):
+                score += 1
+        room_scores[room_type] = score
+    
+    # Return the room type with highest score
+    if room_scores:
+        best_room = max(room_scores.keys(), key=lambda k: room_scores[k])
+        if room_scores[best_room] > 0:
+            return best_room
+    
+    return 'unknown'
+
 def extract_text_ocr(image):
     """Extract text from image using OCR"""
     try:
@@ -574,11 +617,15 @@ def extract_text_ocr(image):
         return ""
 
 # Supabase Vector Database Functions
-def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor, objects: list, colors: list, folder: str, ocr_text: str):
+def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor, objects: list, colors: list, folder: str, ocr_text: str, room_type: str = "unknown"):
     """Store image embedding and metadata in Supabase"""
     try:
         # Convert tensor to list for JSON storage
-        embedding_list = embedding.cpu().numpy().tolist()
+        # Flatten the embedding if it has extra dimensions
+        embedding_np = embedding.cpu().numpy()
+        if embedding_np.ndim > 1:
+            embedding_np = embedding_np.flatten()
+        embedding_list = embedding_np.tolist()
         
         # Prepare data for Supabase
         data = {
@@ -588,7 +635,8 @@ def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor,
             "objects": objects,
             "colors": colors,
             "folder": folder,
-            "ocr_text": ocr_text
+            "ocr_text": ocr_text,
+            "room_type": room_type
         }
         
         # Use upsert to avoid duplicates
@@ -601,13 +649,21 @@ def store_image_embedding(file_id: str, file_name: str, embedding: torch.Tensor,
         print(f"   Data: {data}")
         return False
 
-def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filters: dict = None):
+def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filters: dict | None = None):
+    if filters is None:
+        filters = {}
     """Search for similar images using Supabase vector similarity"""
     try:
         # Convert query embedding to list
-        query_vector = query_embedding.cpu().numpy().tolist()
+        # Flatten the embedding if it has extra dimensions
+        query_np = query_embedding.cpu().numpy()
+        if query_np.ndim > 1:
+            query_np = query_np.flatten()
+        query_vector = query_np.tolist()
         
-        # Build the query
+        print(f"🔍 Searching Supabase with query vector shape: {len(query_vector)}")
+        
+        # Build the query - get ALL records first to see what we have
         query = supabase.table("image_embeddings").select("*")
         
         # Add filters if provided
@@ -617,19 +673,44 @@ def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filter
             if filters.get("folder"):
                 query = query.eq("folder", filters["folder"])
         
-        # Perform vector similarity search
-        # Note: This requires pgvector extension in Supabase
+        # Get all records
         result = query.execute()
         
+        print(f"📊 Found {len(result.data) if result.data else 0} total records in Supabase")
+        
         if not result.data:
+            print("⚠️ No data found in Supabase database")
             return []
         
-        # Calculate similarities manually (since pgvector might not be set up)
+        # Calculate similarities manually
         similarities = []
-        for row in result.data:
-            stored_embedding = torch.tensor(row["embedding"])
-            similarity = torch.cosine_similarity(query_embedding, stored_embedding, dim=0).item()
-            similarities.append((row, similarity))
+        for i, row in enumerate(result.data):
+            try:
+                # Handle the embedding data properly
+                stored_embedding_data = row["embedding"]
+                if isinstance(stored_embedding_data, list):
+                    stored_embedding = torch.tensor(stored_embedding_data, dtype=torch.float32)
+                else:
+                    stored_embedding = torch.tensor(stored_embedding_data, dtype=torch.float32)
+                
+                # Ensure both tensors have the same shape
+                if stored_embedding.shape != query_embedding.shape:
+                    if stored_embedding.dim() == 1 and query_embedding.dim() == 2:
+                        stored_embedding = stored_embedding.unsqueeze(0)
+                    elif stored_embedding.dim() == 2 and query_embedding.dim() == 1:
+                        query_embedding = query_embedding.unsqueeze(0)
+                
+                similarity = torch.cosine_similarity(query_embedding, stored_embedding, dim=-1).item()
+                similarities.append((row, similarity))
+                
+                if i < 3:  # Debug first few
+                    print(f"  📸 {row['file_name']} - Similarity: {similarity:.4f} - Objects: {row.get('objects', [])}")
+                    
+            except Exception as e:
+                print(f"❌ Error processing row {i}: {e}")
+                continue
+        
+        print(f"✅ Calculated similarities for {len(similarities)} images")
         
         # Sort by similarity and return top_k
         similarities.sort(key=lambda x: x[1], reverse=True)
@@ -637,6 +718,8 @@ def search_similar_images(query_embedding: torch.Tensor, top_k: int = 10, filter
         
     except Exception as e:
         print(f"❌ Supabase search failed: {e}")
+        import traceback
+        print(f"📋 Full traceback: {traceback.format_exc()}")
         return []
 
 def clear_supabase_embeddings():
@@ -867,7 +950,7 @@ def auth_drive():
                 service_account_file,
                 scopes=['https://www.googleapis.com/auth/drive.readonly']
             )
-            drive_service = build('drive', 'v3', credentials=creds)
+            drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
             
             # Auto-load existing embeddings from Supabase
             print("📥 Auto-loading existing embeddings...")
@@ -914,8 +997,8 @@ def auth_drive():
                 
                 # Cache the connection
                 import time
-                _connection_cache["last_auth_time"] = time.time()
-                _connection_cache["cached_session"] = session_id
+                _connection_cache["last_auth_time"] = float(time.time())
+                _connection_cache["cached_session"] = str(session_id)
 
                 return {
                     "status": "authenticated",
@@ -930,35 +1013,39 @@ def auth_drive():
                 print(f"❌ Service Account Exception: {e}")
                 # Continue to OAuth2 fallback
 
-        # Try OAuth with NEW client secret first
-        new_client_secret_file = "client_secret_132538948811-qim43q7uu42eh2vskk1f4g2n3koa8ong.apps.googleusercontent.com.json"
-        if os.path.exists(new_client_secret_file):
-            print("🔐 Using NEW OAuth client secret...")
+        # Try OAuth with ORIGINAL WORKING client secret first (this was working before)
+        original_working_client_secret_file = "client_secret_1012576941399-515ln173s773sbrrpn3gtmek0d5vc0u5.apps.googleusercontent.com.json"
+        if os.path.exists(original_working_client_secret_file):
+            print("🔐 Using ORIGINAL WORKING OAuth client secret (secret-spark-432817-r3)...")
             try:
-                print(f"📁 Loading OAuth file: {new_client_secret_file}")
+                print(f"📁 Loading OAuth file: {original_working_client_secret_file}")
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    new_client_secret_file,
-                    scopes=['https://www.googleapis.com/auth/drive.readonly']
+                    original_working_client_secret_file,
+                    scopes=SCOPES
                 )
                 # Enable offline access for refresh tokens
-                flow.redirect_uri = 'http://localhost:8080/callback'
+                flow.redirect_uri = 'http://localhost:8000/auth/callback'
                 print("✅ OAuth flow created successfully")
                 
                 # For web applications, we need to return the authorization URL
                 # instead of running a local server
-                auth_url, _ = flow.authorization_url(prompt='consent')
+                auth_url, _ = flow.authorization_url(
+                    prompt='consent',
+                    access_type='offline',
+                    include_granted_scopes='true'
+                )
                 print(f"🌐 OAuth authorization URL: {auth_url}")
                 
                 return {
                     "status": "oauth_required",
                     "message": "OAuth authorization required",
                     "auth_url": auth_url,
-                    "method": "oauth_new",
+                    "method": "oauth_original_working",
                     "instructions": "Please visit the auth_url to complete OAuth authentication"
                 }
                 
                 print("🔧 Building Drive service...")
-                drive_service = build('drive', 'v3', credentials=creds)
+                drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
                 print("✅ Drive service built")
                 
                 # Test the connection
@@ -978,23 +1065,23 @@ def auth_drive():
 
                 return {
                     "status": "authenticated",
-                    "message": "Successfully connected to Google Drive via NEW OAuth",
+                    "message": "Successfully connected to Google Drive via OAuth",
                     "session_id": session_id,
-                    "method": "oauth_new",
+                    "method": "oauth_original_working",
                     "debug": {
-                        "oauth_file": new_client_secret_file,
+                        "oauth_file": original_working_client_secret_file,
                         "files_found": len(results.get('files', [])),
                         "session_id": session_id
                     }
                 }
             except Exception as e:
-                print(f"❌ NEW OAuth error: {str(e)}")
+                print(f"❌ OAuth error: {str(e)}")
                 import traceback
                 print(f"📋 Full traceback: {traceback.format_exc()}")
                 return {
-                    "error": f"NEW OAuth authentication failed: {str(e)}",
+                    "error": f"OAuth authentication failed: {str(e)}",
                     "debug": {
-                        "oauth_file": new_client_secret_file,
+                        "oauth_file": original_working_client_secret_file,
                         "error_type": type(e).__name__,
                         "traceback": traceback.format_exc()
                     }
@@ -1008,15 +1095,19 @@ def auth_drive():
                 print(f"📁 Loading OAuth file: {old_client_secret_file}")
                 flow = InstalledAppFlow.from_client_secrets_file(
                     old_client_secret_file,
-                    scopes=['https://www.googleapis.com/auth/drive.readonly']
+                    scopes=SCOPES
                 )
                 # Enable offline access for refresh tokens
-                flow.redirect_uri = 'http://localhost:8080/callback'
+                flow.redirect_uri = 'http://localhost:8000/auth/callback'
                 print("✅ OAuth flow created successfully")
                 
                 # For web applications, we need to return the authorization URL
                 # instead of running a local server
-                auth_url, _ = flow.authorization_url(prompt='consent')
+                auth_url, _ = flow.authorization_url(
+                    prompt='consent',
+                    access_type='offline',
+                    include_granted_scopes='true'
+                )
                 print(f"🌐 OAuth authorization URL: {auth_url}")
                 
                 return {
@@ -1028,7 +1119,7 @@ def auth_drive():
                 }
                 
                 print("🔧 Building Drive service...")
-                drive_service = build('drive', 'v3', credentials=creds)
+                drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
                 print("✅ Drive service built")
                 
                 # Test the connection
@@ -1083,6 +1174,87 @@ def auth_drive():
     except Exception as e:
         return {"error": f"Authentication failed: {str(e)}"}
 
+@app.get("/auth/callback")
+def oauth_callback(code: str, state: str | None = None):
+    if state is None:
+        state = ""
+    """Handle OAuth callback to complete authentication"""
+    global drive_service
+    
+    try:
+        print(f"🔄 OAuth callback received with code: {code[:20]}...")
+        
+        # Use the working OAuth file directly
+        oauth_file = "client_secret_1012576941399-515ln173s773sbrrpn3gtmek0d5vc0u5.apps.googleusercontent.com.json"
+        
+        if not os.path.exists(oauth_file):
+            return {
+                "status": "error",
+                "message": f"OAuth file not found: {oauth_file}",
+                "error": "OAuth configuration file missing"
+            }
+        
+        print(f"🔐 Using OAuth file: {oauth_file}")
+        flow = InstalledAppFlow.from_client_secrets_file(
+            oauth_file,
+            scopes=SCOPES
+        )
+        flow.redirect_uri = 'http://localhost:8000/auth/callback'
+        
+        # Exchange the authorization code for credentials
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        print("✅ OAuth credentials obtained successfully")
+        
+        # Build the Drive service
+        drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+        print("✅ Drive service built")
+        
+        # Test the connection
+        print("🧪 Testing Drive API connection...")
+        results = drive_service.files().list(pageSize=5).execute()
+        files = results.get('files', [])
+        print(f"✅ Drive API test successful - found {len(files)} files")
+        
+        # Save session
+        session_id = str(uuid.uuid4())
+        save_credentials_to_session(session_id, creds)
+        print(f"💾 Session saved: {session_id}")
+        
+        # Auto-load existing embeddings from Supabase
+        print("📥 Auto-loading existing embeddings...")
+        loaded_count = load_existing_embeddings()
+        if loaded_count > 0:
+            print(f"✅ Auto-loaded {loaded_count} existing embeddings")
+        
+        # Cache the connection
+        import time
+        _connection_cache["last_auth_time"] = float(time.time())
+        _connection_cache["cached_session"] = str(session_id)
+        
+        return {
+            "status": "authenticated",
+            "message": "OAuth authentication completed successfully!",
+            "session_id": session_id,
+            "method": "oauth_callback",
+            "files_accessible": len(files),
+            "debug": {
+                "oauth_file": oauth_file,
+                "files_found": len(files),
+                "session_id": session_id
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ OAuth callback error: {e}")
+        import traceback
+        print(f"📋 Full traceback: {traceback.format_exc()}")
+        return {
+            "status": "error",
+            "message": f"OAuth callback failed: {str(e)}",
+            "error": str(e)
+        }
+
 @app.get("/auth/status")
 def check_auth_status(session_id: str | None = None):
     """Check if user is authenticated"""
@@ -1094,7 +1266,7 @@ def check_auth_status(session_id: str | None = None):
         if creds:
             try:
                 # Test if credentials are still valid
-                test_service = build('drive', 'v3', credentials=creds)
+                test_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
                 test_service.files().list(pageSize=1).execute()
                 drive_service = test_service  # Update global service
                 return {
@@ -1156,9 +1328,15 @@ def disconnect(session_id: str | None = None):
 # ---------------------------
 # 2️⃣ Index Drive Images
 # ---------------------------
-def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images=999999):
-    """Recursively crawl Google Drive and index images"""
+def crawl_drive_images(service, folder_id=None, folder_path=None, max_images=999999):
+    """Recursively crawl Google Drive and index images - ONLY from the correct shared drive"""
     global image_index
+    
+    # Use default target folder if not specified
+    if folder_id is None:
+        folder_id = TARGET_FOLDER_ID
+    if folder_path is None:
+        folder_path = TARGET_FOLDER_NAME
     
     # Stop if we've already indexed enough images
     if len(image_index) >= max_images:
@@ -1168,13 +1346,8 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
     print(f"🔍 Crawling folder: {folder_path} (ID: {folder_id})")
     
     # Get images in current folder
-    if folder_id == 'root':
-        # For root folder, get ALL images in the drive
-        query = "mimeType contains 'image/' and trashed=false"
-        print(f"   🔍 Searching for ALL images in Google Drive...")
-    else:
-        # For subfolders, get images in this specific folder
-        query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
+    query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
+    print(f"   🔍 Searching for images in: {folder_path}")
     
     print(f"   🔍 Executing query: {query}")
     try:
@@ -1200,6 +1373,11 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             
         file_id = file['id']
         file_name = file['name']
+        
+        # Skip Samsung backup files (wrong drive) - be very strict
+        if any(keyword in file_name for keyword in ["סמסונג", "Samsung", "גיבוי", "backup", "מדיסק", "חיצוני"]):
+            print(f"   ⏭️ Skipping Samsung backup file: {file_name}")
+            continue
         
         # Check if image is already indexed
         if is_image_indexed(file_id):
@@ -1255,6 +1433,9 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
             # YOLO object detection
             objects = detect_objects_yolo(img)
             
+            # Detect room type from objects
+            room_type = detect_room_type_from_objects(objects)
+            
             # OCR text extraction
             ocr_text = extract_text_ocr(img)
             
@@ -1265,11 +1446,12 @@ def crawl_drive_images(service, folder_id='root', folder_path='Root', max_images
                 "objects": objects,
                 "colors": colors,
                 "folder": folder_path,
-                "ocr_text": ocr_text
+                "ocr_text": ocr_text,
+                "room_type": room_type
             }
             
             # Store in Supabase vector database
-            store_image_embedding(file_id, file_name, embedding, objects, colors, folder_path, ocr_text)
+            store_image_embedding(file_id, file_name, embedding, objects, colors, folder_path, ocr_text, room_type)
             
             print(f"Indexed: {file_name} - Objects: {objects} - Colors: {colors}")
             
@@ -1318,9 +1500,9 @@ def index_drive():
         # Start from root to crawl ALL folders and subfolders
         print(f"🎯 Starting indexing from root folder to crawl ALL folders")
         print(f"🔗 This will index images from all accessible folders in your Google Drive")
-        print(f"📊 Indexing ALL images - NO LIMIT!")
+        print(f"📊 Indexing ALL images from target folder: {TARGET_FOLDER_ID}")
         print(f"🔍 This is MANUAL indexing - not automatic on connection")
-        crawl_drive_images(drive_service, folder_id='root', folder_path='Root', max_images=999999)
+        crawl_drive_images(drive_service, max_images=999999)
         return {
             "status": "Drive indexed successfully", 
             "total_images": len(image_index),
@@ -1440,6 +1622,24 @@ def search_images(req: SearchRequest):
         text_features = clip_model.get_text_features(**text_inputs)
         text_emb = text_features / text_features.norm(dim=-1, keepdim=True)
 
+    # Check if query is asking for specific room types
+    room_type_query = None
+    hebrew_room_mapping = {
+        'מטבח': 'kitchen',
+        'סלון': 'living_room', 
+        'חדר ילדים': 'children_room',
+        'חדר שינה': 'bedroom',
+        'חדר רחצה': 'bathroom',
+        'פינת אוכל': 'dining_room',
+        'חדר עבודה': 'office'
+    }
+    
+    for hebrew_room, english_room in hebrew_room_mapping.items():
+        if hebrew_room in req.query:
+            room_type_query = english_room
+            print(f"🏠 Detected room type query: {hebrew_room} -> {english_room}")
+            break
+
     results = []
     for fid, data in image_index.items():
         # Skip negative feedback images
@@ -1473,6 +1673,12 @@ def search_images(req: SearchRequest):
             feedback_sim = (avg_feedback.cpu() @ data['embedding'].T).item()
             sim = max(sim, sim + feedback_sim * feedback_boost)
         
+        # Room type matching boost
+        room_type_boost = 0
+        if room_type_query and data.get('room_type') == room_type_query:
+            room_type_boost = 0.4
+            print(f"🏠 Room type match for {data['name']}: {data['room_type']} matches {room_type_query}")
+        
         # Object filter score - enhanced for room type detection
         if req.required_objects:
             obj_score = len(set(data['objects']) & set(req.required_objects)) / max(1, len(req.required_objects))
@@ -1495,13 +1701,15 @@ def search_images(req: SearchRequest):
             col_score = 1.0
         
         # Combined score using improved algorithm with dynamic weights
-        # For room type searches, give more weight to object detection
+        # For room type searches, give more weight to object detection and room type
         if any(room_term in req.query.lower() for room_term in ['kitchen', 'מטבח', 'bedroom', 'חדר שינה', 'bathroom', 'חדר רחצה']):
-            weights = {"semantic": 0.4, "object": 0.5, "color": 0.1}  # More weight to objects for room detection
+            weights = {"semantic": 0.3, "object": 0.4, "color": 0.1, "room_type": 0.2}  # More weight to objects and room type for room detection
         else:
-            weights = {"semantic": 0.6, "object": 0.2, "color": 0.2}  # Default weights
+            weights = {"semantic": 0.6, "object": 0.2, "color": 0.2, "room_type": 0.0}  # Default weights
         
-        final_score = calculate_combined_score(sim, obj_score, col_score, weights)
+        # Add room type boost to semantic score
+        sim_with_room_boost = sim + room_type_boost
+        final_score = calculate_combined_score(sim_with_room_boost, obj_score, col_score, weights)
         
         results.append((fid, data['name'], final_score, data['objects'], data['colors'], sim, obj_score, col_score, data.get('folder', 'Root')))
 
@@ -1744,12 +1952,29 @@ async def clear_supabase():
 async def setup_supabase_table():
     """Create the image_embeddings table in Supabase"""
     try:
-        # This would typically be done via SQL, but we'll try to create via API
-        # For now, just return success - the table should be created manually in Supabase
+        # Try to add the missing room_type column
+        try:
+            # First, try to add the room_type column if it doesn't exist
+            result = supabase.rpc('add_room_type_column').execute()
+            print("✅ Added room_type column to existing table")
+        except Exception as add_error:
+            print(f"⚠️ Could not add room_type column: {add_error}")
+            # If that fails, try to create the table from scratch
+            try:
+                # Try to create the table
+                result = supabase.rpc('create_image_embeddings_table').execute()
+                print("✅ Created image_embeddings table")
+            except Exception as create_error:
+                print(f"⚠️ Could not create table: {create_error}")
+        
         return {
             "status": "success", 
-            "message": "Please create the 'image_embeddings' table in Supabase with columns: file_id, file_name, embedding, objects, colors, folder, ocr_text, created_at",
+            "message": "Table setup attempted. If room_type column is still missing, please add it manually in Supabase: ALTER TABLE image_embeddings ADD COLUMN room_type TEXT DEFAULT 'unknown';",
             "sql": """
+            -- Add missing room_type column:
+            ALTER TABLE image_embeddings ADD COLUMN room_type TEXT DEFAULT 'unknown';
+            
+            -- Or create table from scratch:
             CREATE TABLE image_embeddings (
                 file_id TEXT PRIMARY KEY,
                 file_name TEXT,
@@ -1758,6 +1983,7 @@ async def setup_supabase_table():
                 colors INTEGER[][],
                 folder TEXT,
                 ocr_text TEXT,
+                room_type TEXT DEFAULT 'unknown',
                 created_at TIMESTAMP DEFAULT NOW()
             );
             """
@@ -1787,6 +2013,31 @@ async def test_supabase():
             "status": "error", 
             "message": f"Supabase connection failed: {str(e)}",
             "table_exists": False
+        }
+
+@app.get("/debug_supabase")
+async def debug_supabase():
+    """Debug Supabase database - show all records"""
+    try:
+        # Get all records
+        result = supabase.table("image_embeddings").select("*").execute()
+        
+        # Group by folder
+        folder_counts = {}
+        for row in result.data:
+            folder = row.get("folder", "unknown")
+            folder_counts[folder] = folder_counts.get(folder, 0) + 1
+        
+        return {
+            "status": "success",
+            "total_records": len(result.data),
+            "folder_distribution": folder_counts,
+            "sample_records": result.data[:3] if result.data else []
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Supabase debug failed: {str(e)}"
         }
 
 @app.post("/export_collection_pdf")
@@ -2485,7 +2736,28 @@ async def get_image(file_id: str):
         print("🔄 Drive service not available, attempting to re-authenticate...")
         try:
             auth_result = auth_drive()
-            if auth_result.get("status") == "authenticated":
+            if auth_result and auth_result.get("status") == "authenticated":
+                print("✅ Successfully re-authenticated with Google Drive")
+            else:
+                raise HTTPException(status_code=401, detail="Failed to re-authenticate with Google Drive")
+        except Exception as e:
+            print(f"❌ Re-authentication failed: {e}")
+            raise HTTPException(status_code=401, detail="Not authenticated with Google Drive and re-authentication failed")
+    
+    # Test the connection before proceeding
+    try:
+        # Quick test to ensure the service is working
+        if drive_service:
+            test_result = drive_service.files().list(pageSize=1).execute()
+            print(f"✅ Drive service connection test successful")
+        else:
+            raise Exception("Drive service is None")
+    except Exception as test_error:
+        print(f"❌ Drive service connection test failed: {test_error}")
+        print("🔄 Attempting to re-authenticate...")
+        try:
+            auth_result = auth_drive()
+            if auth_result and auth_result.get("status") == "authenticated":
                 print("✅ Successfully re-authenticated with Google Drive")
             else:
                 raise HTTPException(status_code=401, detail="Failed to re-authenticate with Google Drive")
@@ -2500,6 +2772,8 @@ async def get_image(file_id: str):
         try:
             # Get file metadata with error handling
             try:
+                if not drive_service:
+                    raise Exception("Drive service is None")
                 file_metadata = drive_service.files().get(fileId=file_id).execute()
                 print(f"✅ File metadata retrieved: {file_metadata.get('name', 'Unknown')}")
             except Exception as meta_error:
@@ -2512,18 +2786,45 @@ async def get_image(file_id: str):
                     headers={"Content-Disposition": f"inline; filename=metadata_error.png"}
                 )
             
-            # Download file content with retry logic
+            # Download file content with retry logic and SSL handling
             file_content = None
             max_retries = 3
             for attempt in range(max_retries):
                 try:
                     print(f"🔄 Download attempt {attempt + 1}/{max_retries} for {file_id}")
+                    if not drive_service:
+                        raise Exception("Drive service is None")
                     request = drive_service.files().get_media(fileId=file_id)
+                    
+                    # Add SSL context to the request
+                    import ssl
+                    import urllib3
+                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                    
                     file_content = request.execute()
                     print(f"✅ Image downloaded successfully, size: {len(file_content)} bytes")
                     break
                 except Exception as download_error:
+                    error_msg = str(download_error)
                     print(f"❌ Download attempt {attempt + 1} failed: {download_error}")
+                    
+                    # Handle specific SSL errors
+                    if "SSL" in error_msg or "connection reset" in error_msg.lower() or "wrong version number" in error_msg:
+                        print(f"🔒 SSL error detected, trying with different approach...")
+                        if attempt == max_retries - 1:
+                            print(f"❌ SSL errors persist after {max_retries} attempts for {file_id}")
+                            # Return placeholder for SSL errors
+                            placeholder = create_placeholder_image()
+                            return StreamingResponse(
+                                io.BytesIO(placeholder),
+                                media_type="image/png",
+                                headers={"Content-Disposition": f"inline; filename=ssl_error.png"}
+                            )
+                        else:
+                            import time
+                            time.sleep(2)  # Wait longer for SSL retry
+                            continue
+                    
                     if attempt == max_retries - 1:
                         print(f"❌ All {max_retries} download attempts failed for {file_id}")
                         # Return placeholder for download errors
@@ -2540,11 +2841,20 @@ async def get_image(file_id: str):
             # Determine content type
             mime_type = file_metadata.get('mimeType', 'image/jpeg')
             
-            return StreamingResponse(
-                io.BytesIO(file_content),
-                media_type=mime_type,
-                headers={"Content-Disposition": f"inline; filename={file_metadata.get('name', 'image')}"}
-            )
+            if file_content is not None:
+                return StreamingResponse(
+                    io.BytesIO(file_content),
+                    media_type=mime_type,
+                    headers={"Content-Disposition": f"inline; filename={file_metadata.get('name', 'image')}"}
+                )
+            else:
+                # Return placeholder if file_content is None
+                placeholder = create_placeholder_image()
+                return StreamingResponse(
+                    io.BytesIO(placeholder),
+                    media_type="image/png",
+                    headers={"Content-Disposition": "inline; filename=placeholder.png"}
+                )
             
         except Exception as e:
             print(f"❌ Unexpected error in image serving: {e}")
@@ -3155,9 +3465,9 @@ def debug_drive():
         results = drive_service.files().list(pageSize=10, fields="files(id,name,mimeType)").execute()
         files = results.get('files', [])
         
-        # Test image-specific query
+        # Test image-specific query for the shared drive
         image_results = drive_service.files().list(
-            q="mimeType contains 'image/' and trashed=false", 
+            q=f"'{TARGET_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed=false", 
             pageSize=10, 
             fields="files(id,name,mimeType)"
         ).execute()

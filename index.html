@@ -919,9 +919,32 @@
                     document.getElementById('auth-btn').onclick = disconnectFromDrive;
                     document.getElementById('index-btn').disabled = false;
                     document.getElementById('search-btn').disabled = false;
+                } else if (data.status === 'oauth_required' && data.auth_url) {
+                    console.log('🔗 OAuth URL received:', data.auth_url);
+                    document.getElementById('auth-status').innerHTML = '🔗 Please visit the OAuth URL to complete authentication';
+                    document.getElementById('auth-status').className = 'status info';
+                    
+                    // Create a clickable link to the OAuth URL
+                    const authLink = document.createElement('a');
+                    authLink.href = data.auth_url;
+                    authLink.target = '_blank';
+                    authLink.textContent = 'Click here to authenticate with Google Drive';
+                    authLink.style.color = '#007bff';
+                    authLink.style.textDecoration = 'underline';
+                    authLink.style.marginLeft = '10px';
+                    
+                    document.getElementById('auth-status').appendChild(authLink);
+                    
+                    // Add instructions
+                    const instructions = document.createElement('div');
+                    instructions.innerHTML = '<br><small>After completing authentication, you will be redirected back to this page.</small>';
+                    instructions.style.marginTop = '10px';
+                    instructions.style.color = '#666';
+                    document.getElementById('auth-status').appendChild(instructions);
+                    
                 } else {
-                    console.error('❌ Authentication failed:', data.error);
-                    document.getElementById('auth-status').innerHTML = '❌ ' + data.error;
+                    console.error('❌ Authentication failed:', data.error || data.message);
+                    document.getElementById('auth-status').innerHTML = '❌ ' + (data.error || data.message || 'Authentication failed');
                     document.getElementById('auth-status').className = 'status error';
                     
                     // Log debug info if available

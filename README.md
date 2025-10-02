@@ -1,125 +1,277 @@
-# PicLocate AI 🖼️🔍
+# PicLocate V4 - AI-Powered Image Search
 
-AI-powered Google Drive image search application with semantic query, object detection, and color analysis.
+A complete end-to-end solution for intelligent image search with ChatGPT-like accuracy, featuring advanced AI pipeline, V4 indexing, and production-ready search engine.
 
-## Features
+## 🚀 Features
 
-- **🔍 Semantic Search**: Find images using natural language descriptions
-- **🎯 Object Detection**: YOLOv8-powered object recognition
-- **🎨 Color Analysis**: Extract dominant colors from images
-- **📄 PDF Parsing**: Upload storyboards and extract requirements
-- **🌐 Multi-language**: Support for English and Hebrew search
-- **📤 Export Options**: PDF, Word, and PowerPoint export with AI-generated proposals
+- **AI-First Search**: ChatGPT-like image understanding with VLM verification
+- **V4 Indexing**: Advanced AI pipeline with object detection, room classification, and embeddings
+- **Multilingual Support**: Hebrew ↔ English with comprehensive translation
+- **Real-time Monitoring**: Live indexing progress and system health
+- **Production Ready**: Optimized for speed, cost, and scalability
 
-## Tech Stack
+## 🏗️ Architecture
 
-- **Backend**: FastAPI with Python
-- **AI Models**: CLIP, YOLOv8, OpenAI GPT
-- **Frontend**: HTML/CSS/JavaScript with Tailwind CSS
-- **Cloud**: Google Drive API integration
-- **Deployment**: Vercel (Frontend) + Railway/Render (Backend)
+```
+User Query → Frontend → Integrated Backend
+                           |
+                    V4 Indexing System
+                    ├── Object Detection (YOLO)
+                    ├── Room Classification
+                    ├── Color/Material Analysis
+                    ├── Structured Captions
+                    └── Vector Embeddings
+                           |
+                    Production Search Engine
+                    ├── Stage A: Fast Retrieval (SQL + pgvector)
+                    ├── Stage B: VLM Verification (GPT-4o-mini)
+                    └── Stage C: Re-rank & Filter
+                           |
+                    Supabase Database
+                    ├── images (10,000+ records)
+                    ├── image_objects (detected objects)
+                    ├── image_captions (structured captions)
+                    └── image_tags (searchable tags)
+```
 
-## Quick Start
+## 📁 Project Structure
+
+```
+PicLocate/
+├── fastapi_drive_ai_v4_integrated.py    # Integrated backend
+├── production_search_engine.py          # AI-first search engine
+├── production_search_api.py             # Search API endpoints
+├── start_integrated_system.py           # System startup script
+├── frontend/
+│   ├── pages/index.js                   # React frontend
+│   ├── styles/Home.module.css           # Modern styling
+│   ├── package.json                     # Frontend dependencies
+│   └── next.config.js                   # Next.js configuration
+├── requirements.txt                     # Python dependencies
+├── vercel.json                          # Vercel deployment config
+└── README.md                            # This file
+```
+
+## 🛠️ Installation
 
 ### Prerequisites
 
 - Python 3.8+
+- Node.js 18+
 - Google Drive API credentials
-- OpenAI API key
+- Supabase account
+- OpenAI API key (for production search)
 
-### Installation
+### Local Development
 
-1. Clone the repository:
-```bash
-git clone https://github.com/eldikeren/Pic-Locate-AI.git
-cd Pic-Locate-AI
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd PicLocate
+   ```
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Install frontend dependencies**
+   ```bash
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+4. **Set up environment variables**
+   ```bash
+   export SUPABASE_URL="your-supabase-url"
+   export SUPABASE_KEY="your-supabase-key"
+   export OPENAI_API_KEY="your-openai-key"
+   ```
+
+5. **Start the integrated system**
+   ```bash
+   python start_integrated_system.py
+   ```
+
+## 🚀 Deployment
+
+### Vercel Deployment
+
+1. **Install Vercel CLI**
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy to Vercel**
+   ```bash
+   vercel --prod
+   ```
+
+3. **Set environment variables in Vercel dashboard**
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+   - `OPENAI_API_KEY`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+
+### Manual Deployment
+
+1. **Build the frontend**
+   ```bash
+   cd frontend
+   npm run build
+   cd ..
+   ```
+
+2. **Deploy backend to your preferred platform**
+   - Heroku
+   - Railway
+   - DigitalOcean
+   - AWS
+
+## 📊 API Endpoints
+
+### V4 Indexing
+- `POST /v4/index` - Start V4 indexing
+- `GET /indexing/status` - Check indexing progress
+- `GET /stats/overview` - System statistics
+
+### Production Search
+- `POST /api/search/production` - AI-powered search
+- `POST /api/search/analyze` - Single image analysis
+- `GET /api/search/suggestions` - Search suggestions
+- `GET /api/search/trending` - Trending searches
+
+### System
+- `GET /health` - System health check
+- `GET /docs` - API documentation
+
+## 🔍 Usage
+
+### Basic Search
+
+```javascript
+// Search for images
+const response = await fetch('/api/search/production', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: 'kitchen with black table',
+    lang: 'en',
+    limit: 24
+  })
+});
+
+const results = await response.json();
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
+### Hebrew Search
+
+```javascript
+// Hebrew search (automatically translated)
+const response = await fetch('/api/search/production', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: 'מטבח עם שולחן שחור',
+    lang: 'he',
+    limit: 24
+  })
+});
 ```
 
-3. Set up environment variables:
-```bash
-export OPENAI_API_KEY="your-openai-api-key"
-```
+## 🎯 Key Features
 
-4. Add your Google Drive credentials:
-   - Place your service account JSON file in the root directory
-   - Or configure OAuth2 client credentials
+### AI-First Search
+- **VLM Verification**: AI analyzes images pixel by pixel
+- **Explainable Results**: Confidence scores and match reasons
+- **ChatGPT-like Accuracy**: Only returns images AI confirms match
 
-5. Start the backend server:
-```bash
-python -m uvicorn fastapi_drive_ai_v3:app --reload --port 8000
-```
+### V4 Indexing Pipeline
+- **Object Detection**: YOLO-based object recognition
+- **Room Classification**: Intelligent room type inference
+- **Color Analysis**: Per-object color extraction
+- **Material Detection**: Texture and material classification
+- **Structured Captions**: English and Hebrew descriptions
 
-6. Start the frontend server:
-```bash
-python -m http.server 4000
-```
+### Production Optimizations
+- **Batch Processing**: 12 images per VLM call
+- **Result Caching**: Avoid repeated API calls
+- **Image Downscaling**: 1024px max for speed/cost
+- **Fast Retrieval**: SQL + pgvector search
 
-7. Open your browser to `http://localhost:4000`
+## 📈 Performance
 
-## Usage
+- **Indexing Speed**: ~3 images/minute (with AI processing)
+- **Search Speed**: ~2-6 seconds/query (with VLM verification)
+- **Cost**: ~$0.02-0.03/search (with OpenAI API)
+- **Accuracy**: ChatGPT-like precision with explainable results
 
-1. **Connect to Google Drive**: Click "Connect to Google Drive" and authenticate
-2. **Index Images**: Click "Index Drive" to scan and analyze your images
-3. **Search**: Use natural language to find images (e.g., "modern kitchen with island")
-4. **Upload Storyboards**: Upload PDF storyboards to extract requirements and find matching images
-5. **Export Results**: Select images and export to PDF, Word, or PowerPoint
-
-## API Endpoints
-
-- `POST /auth` - Authenticate with Google Drive
-- `POST /index` - Index images in Google Drive
-- `POST /search` - Search images using semantic similarity
-- `POST /parse_requirements` - Parse PDF storyboards
-- `POST /analyze_storyboard` - Analyze uploaded storyboard images
-- `GET /image/{file_id}` - Serve images from Google Drive
-- `POST /export/pdf` - Export selected images to PDF
-- `POST /export/word` - Export selected images to Word document
-- `POST /export/ppt` - Export selected images to PowerPoint
-
-## Deployment
-
-### Frontend (Vercel)
-The frontend is deployed automatically to Vercel when you push to the main branch.
-
-### Backend
-For production deployment, consider:
-- **Railway**: Easy Python deployment
-- **Render**: Free tier available
-- **Heroku**: Traditional option
-- **Google Cloud Run**: Serverless container deployment
-
-## Configuration
+## 🔧 Configuration
 
 ### Environment Variables
-- `OPENAI_API_KEY`: Your OpenAI API key for AI features
-- `GOOGLE_APPLICATION_CREDENTIALS`: Path to service account JSON file
 
-### Google Drive Setup
-1. Create a Google Cloud Project
-2. Enable Google Drive API
-3. Create service account credentials
-4. Share your Google Drive folder with the service account email
+```bash
+# Required
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
 
-## Contributing
+# Optional (for production search)
+OPENAI_API_KEY=your-openai-api-key
+
+# Google Drive (for indexing)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+### Search Engine Settings
+
+```python
+# In production_search_engine.py
+TOP_K = 120          # Candidates from Stage A
+BATCH_SIZE = 12      # Images per VLM call
+CUTOFF = 0.7         # VLM confidence threshold
+FINAL_LIMIT = 24     # Final results to return
+```
+
+## 🧪 Testing
+
+```bash
+# Run end-to-end tests
+python test_simple_end_to_end.py
+
+# Test individual components
+python test_search_components.py
+
+# Test production search
+python test_production_search.py
+```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Submit a pull request
+4. Add tests
+5. Submit a pull request
 
-## License
+## 📞 Support
 
-MIT License - see LICENSE file for details
+For support and questions:
+- Create an issue in the repository
+- Check the documentation
+- Review the API docs at `/docs`
 
-## Support
+## 🎉 Acknowledgments
 
-For issues and questions, please open an issue on GitHub.
-
----
-
-Made with ❤️ by [Eldikeren](https://github.com/eldikeren)
+- OpenAI for GPT-4o-mini vision capabilities
+- Supabase for database and vector search
+- Google Drive API for image storage
+- YOLO for object detection
+- FastAPI for the backend framework
+- Next.js for the frontend framework
